@@ -8,6 +8,9 @@ dependencies {
  mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
  modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
  modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    // RE2/J provides linear-time matching; user supplied filters are never run
+    // through Java's backtracking regex engine on the client thread.
+    include implementation('com.google.re2j:re2j:1.8')
 }
 processResources { inputs.property 'version', project.version; filesMatching('fabric.mod.json') { expand version: project.version } }
 tasks.withType(JavaCompile).configureEach { options.release = 21; options.encoding = 'UTF-8' }

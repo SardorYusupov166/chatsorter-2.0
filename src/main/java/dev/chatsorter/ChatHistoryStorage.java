@@ -254,7 +254,7 @@ public final class ChatHistoryStorage {
         catch (Exception ignored) { return ""; }
     }
 
-    private static Text deserializeText(String json) {
+    public static Text deserializeText(String json) {
         if (json == null || json.isBlank()) return null;
         try {
             JsonElement element = JsonParser.parseString(json);

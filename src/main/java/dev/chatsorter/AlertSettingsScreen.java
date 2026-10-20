@@ -34,7 +34,7 @@ public final class AlertSettingsScreen extends Screen {
     private int historyBottom() { return height - 38; }
     private int settingsTop() { return 101; }
     private int settingsBottom() { return historyBottom() - 5; }
-    private int settingsContentHeight() { return selected == null ? 465 : 680; }
+    private int settingsContentHeight() { return selected == null ? 500 : 715; }
     private int maxSettingsScroll() { return Math.max(0, settingsContentHeight() - Math.max(1, settingsBottom() - settingsTop())); }
     private int wordRows() { return Math.max(1, (listBottom() - listTop()) / 22); }
     private int historyRows() { return Math.max(1, (historyBottom() - historyTop() - 19) / 24); }
@@ -141,16 +141,17 @@ public final class AlertSettingsScreen extends Screen {
         c.fill(limitKnobX-2,oy+386,limitKnobX+3,oy+404,0xFFFFFFFF);
         button(c,"Очистить историю этого сервера",sx,oy+410,sw,22,mx,my);
         c.drawTextWithShadow(textRenderer,"Перетащите ползунок, чтобы изменить лимит.",sx,oy+437,0xFFAAAAAA);
+        button(c,"Пользовательские фильтры Regex",sx,oy+455,sw,22,mx,my);
         if(selected!=null) {
-            c.drawTextWithShadow(textRenderer,"Выбранное уведомление",sx,oy+455,ChatTheme.text());
-            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Время: "+selected.time(),sw),sx,oy+475,0xFFFFFFFF);
-            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Слово: "+selected.keyword(),sw),sx,oy+491,0xFFFFFFFF);
-            c.drawTextWithShadow(textRenderer,"Полное сообщение:",sx,oy+511,0xFFFFFFFF);
+            c.drawTextWithShadow(textRenderer,"Выбранное уведомление",sx,oy+487,ChatTheme.text());
+            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Время: "+selected.time(),sw),sx,oy+507,0xFFFFFFFF);
+            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Слово: "+selected.keyword(),sw),sx,oy+523,0xFFFFFFFF);
+            c.drawTextWithShadow(textRenderer,"Полное сообщение:",sx,oy+543,0xFFFFFFFF);
             String msg=selected.message();
             int maxChars=Math.max(8,sw/6);
             for(int i=0;i<Math.min(12,(msg.length()+maxChars-1)/maxChars);i++) {
                 int start=i*maxChars;
-                c.drawTextWithShadow(textRenderer,msg.substring(start,Math.min(msg.length(),start+maxChars)),sx,oy+528+i*12,0xFFE2E5E2);
+                c.drawTextWithShadow(textRenderer,msg.substring(start,Math.min(msg.length(),start+maxChars)),sx,oy+560+i*12,0xFFE2E5E2);
             }
         }
         c.disableScissor();
@@ -307,6 +308,9 @@ public final class AlertSettingsScreen extends Screen {
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+410 && y<oy+432) {
                 ChatSorter.clearCurrentServerHistory(); return true;
+            }
+            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+455 && y<oy+477) {
+                client.setScreen(new UserFiltersScreen(this)); return true;
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<=sx+sw && y>=oy+23 && y<oy+38) {
                 draggingVolume=true;

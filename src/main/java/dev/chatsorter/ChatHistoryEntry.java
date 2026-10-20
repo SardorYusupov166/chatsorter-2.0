@@ -26,6 +26,7 @@ public final class ChatHistoryEntry {
     public String componentJson = "";
     public int repeats;
     public boolean restored;
+    public boolean bookmarkFallback;
 
     private final ArrayList<ChatMessageRecord> sourceRecords = new ArrayList<>();
 
@@ -115,9 +116,9 @@ public final class ChatHistoryEntry {
     }
 
     public Text displayText() {
-        MutableText shown = restored
-            ? Text.literal("[пред. сессия] ").styled(s -> s.withColor(0xFF8A929B)).append(message.copy())
-            : message.copy();
+        MutableText shown = bookmarkFallback
+            ? Text.literal("[избранное · копия] ").styled(s -> s.withColor(0xFFE0BD65)).append(message.copy())
+            : restored ? Text.literal("[пред. сессия] ").styled(s -> s.withColor(0xFF8A929B)).append(message.copy()) : message.copy();
         if (repeats > 1) shown.append(Text.literal(" ×" + repeats).styled(s -> s.withColor(0xFF9EA7B0)));
         return shown;
     }

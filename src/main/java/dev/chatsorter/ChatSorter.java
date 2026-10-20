@@ -27,7 +27,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatSorter implements ClientModInitializer {
-    public static final String VERSION = "2.0.0-alpha.1";
+    public static final String VERSION = "2.0.0-alpha.4";
     private static final int MAX_CHAT_HISTORY = 16_384;
     private static final DateTimeFormatter MESSAGE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     public static int maxChatHistory() { return MAX_CHAT_HISTORY; }
@@ -41,6 +41,8 @@ public class ChatSorter implements ClientModInitializer {
     private static String activeServerKey;
     private static String activeSessionId;
     private static ChatHistoryEntry lastReceivedEntry;
+    private static int customFilterOffset;
+    private static boolean favoritesEnabled;
     private static final IdentityHashMap<Text, ChatHistoryEntry> HUD_ENTRIES = new IdentityHashMap<>();
     private static final ChatMessageStore MESSAGE_STORE = new ChatMessageStore();
     public static final int[] unread = new int[Tab.values().length];
@@ -78,7 +80,60 @@ public class ChatSorter implements ClientModInitializer {
         return names.isEmpty() ? "NONE" : String.join(",", names);
     }
     public static List<ChatHistoryEntry> entries(Tab tab) { return MESSAGE_STORE.inCategory(tab); }
+    /** Rows currently represented in the chat view, in chronological order. */
+    public static List<ChatHistoryEntry> visibleEntriesForSelection() {
+        ArrayList<ChatHistoryEntry> result = new ArrayList<>();
+        for (ChatHistoryEntry entry : MESSAGE_STORE.all()) {
+            boolean matchesSearch = !isSearching() || entry.message.getString().toLowerCase(Locale.ROOT).contains(searchQuery);
+            if (matchesSearch && (isSearching() || visibleByFilters(entry))) result.add(entry);
+        }
+        if (favoritesEnabled) {
+            for (ChatMessageRecord source : ChatBookmarks.all()) {
+                if (MESSAGE_STORE.findSource(source.id()) != null) continue;
+                if (isSearching() && !source.rawText().toLowerCase(Locale.ROOT).contains(searchQuery)) continue;
+                Tab tab = tabFrom(source.categories());
+                ChatHistoryEntry fallback = new ChatHistoryEntry(source,
+                    LocalDateTime.ofInstant(source.receivedAt(), java.time.ZoneId.systemDefault()).format(MESSAGE_TIME),
+                    tab, "Закладка сохранена отдельно от истории", false);
+                fallback.bookmarkFallback = true;
+                result.add(fallback);
+            }
+        }
+        result.sort(java.util.Comparator.comparing((ChatHistoryEntry entry) -> entry.receivedAt));
+        return List.copyOf(result);
+    }
     public static String currentServerKey() { return activeServerKey; }
+    public record FilterToggle(String key, String label, boolean enabled) { }
+    public static List<FilterToggle> filterToggles(int screenWidth) {
+        List<FilterToggle> result = new ArrayList<>();
+        for (Tab tab : Tab.values()) result.add(new FilterToggle(tab.name(), tab.title, filterEnabled(tab)));
+        List<String> categories = ChatUserFilters.categories();
+        int pageSize = customFilterPageSize(screenWidth);
+        customFilterOffset = Math.min(customFilterOffset, Math.max(0, ((categories.size()-1)/pageSize)*pageSize));
+        result.add(new FilterToggle("favorites", "Избранное", favoritesEnabled));
+        for (String category : categories.stream().skip(customFilterOffset).limit(pageSize).toList())
+            result.add(new FilterToggle("custom:" + category, category,
+                ChatExperienceSettings.customFiltersEnabled && ChatUserFilters.categoryEnabled(category)));
+        return result;
+    }
+    public static int customFilterPageSize(int screenWidth) { return Math.max(1, Math.min(12, (screenWidth - 160) / 70)); }
+    public static void moveCustomFilterPage(int direction, int screenWidth) {
+        int size=customFilterPageSize(screenWidth), total=ChatUserFilters.categories().size();
+        int max=Math.max(0,((total-1)/size)*size);
+        customFilterOffset=Math.max(0,Math.min(max,customFilterOffset+Integer.signum(direction)*size));
+    }
+    public static String customFilterPageLabel(int screenWidth) {
+        int size=customFilterPageSize(screenWidth), total=ChatUserFilters.categories().size();
+        if(total<=size) return "";
+        return (customFilterOffset/size+1)+"/"+((total+size-1)/size);
+    }
+    public static void toggleFilterKey(String key) {
+        if (key == null) return;
+        if (key.equals("favorites")) { favoritesEnabled=!favoritesEnabled; refreshChat(); }
+        else if (key.startsWith("custom:")) ChatUserFilters.toggleCategory(key.substring("custom:".length()));
+        else try { toggleFilter(Tab.valueOf(key)); } catch (IllegalArgumentException ignored) { }
+    }
+    public static void refreshChatFromFilters() { refreshChat(); }
 
     private static void refreshChat() {
         MinecraftClient mc = MinecraftClient.getInstance();
@@ -91,11 +146,24 @@ public class ChatSorter implements ClientModInitializer {
             List<ChatHistoryEntry> source = MESSAGE_STORE.all();
             for (ChatHistoryEntry entry : source) {
                 boolean matchesSearch = !isSearching() || entry.message.getString().toLowerCase(Locale.ROOT).contains(searchQuery);
-                boolean matchesFilters = isSearching() || filterEnabled(entry.tab);
+                boolean matchesFilters = isSearching() || visibleByFilters(entry);
                 if (matchesSearch && matchesFilters) {
                     Text display = entry.displayText();
                     HUD_ENTRIES.put(display, entry);
                     hud.addMessage(display);
+                }
+            }
+            if (favoritesEnabled) {
+                for (ChatMessageRecord source : ChatBookmarks.all()) {
+                    if (MESSAGE_STORE.findSource(source.id()) != null) continue;
+                    ChatSorter.Tab tab = tabFrom(source.categories());
+                    ChatHistoryEntry fallback = new ChatHistoryEntry(source,
+                        LocalDateTime.ofInstant(source.receivedAt(), java.time.ZoneId.systemDefault()).format(MESSAGE_TIME),
+                        tab, "Закладка сохранена отдельно от истории", false);
+                    fallback.bookmarkFallback = true;
+                    if (!isSearching() || source.rawText().toLowerCase(Locale.ROOT).contains(searchQuery)) {
+                        Text display=fallback.displayText(); HUD_ENTRIES.put(display,fallback); hud.addMessage(display);
+                    }
                 }
             }
         } finally { replaying = false; }
@@ -106,6 +174,7 @@ public class ChatSorter implements ClientModInitializer {
         KeywordAlerts.load();
         ChatTheme.load();
         ChatExperienceSettings.load();
+        ChatUserFilters.load();
         AlertHotkey.load();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             AlertHotkey.tick(client);
@@ -131,6 +200,8 @@ public class ChatSorter implements ClientModInitializer {
             client.execute(() -> {
                 if (client.player == null) return;
                 openServerHistory(server);
+                ChatBookmarks.load(activeServerKey);
+                refreshChat();
                 client.inGameHud.getChatHud().addMessage(Text.literal("[ChatSorter] Мод успешно загружен!").styled(style -> style.withColor(0x55FF55)));
                 client.inGameHud.getChatHud().addMessage(Text.literal("Автор: ").styled(style -> style.withColor(0xFFCC55))
                     .append(Text.literal("mlpgod").styled(style -> style.withColor(0xFFFFFF))));
@@ -141,6 +212,7 @@ public class ChatSorter implements ClientModInitializer {
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             saveHistory(true);
+            ChatBookmarks.flush();
             ChatSorterDiagnostics.endSession();
             clearMemory();
             activeSessionId = null;
@@ -177,19 +249,20 @@ public class ChatSorter implements ClientModInitializer {
         }
         Tab tab = classify(raw);
         String sender = findSender(raw, tab);
+        ChatUserFilters.Match custom = ChatUserFilters.match(raw, sender, tab.name());
         boolean visible = isSearching()
             ? raw.toLowerCase(Locale.ROOT).contains(searchQuery)
-            : filterEnabled(tab);
+            : (!custom.moved() && filterEnabled(tab)) || custom.categories().stream().anyMatch(ChatUserFilters::categoryEnabled);
         ChatSorterDiagnostics.record(message, tab.name(), enabledFilterNames(), visible);
 
         ChatHistoryEntry previous = lastReceivedEntry;
         if (ChatExperienceSettings.mergeRepeats && previous != null && !previous.restored
                 && previous.tab == tab && !sender.isBlank() && previous.sender.equalsIgnoreCase(sender)
                 && normalize(previous.message.getString()).equals(normalize(raw))) {
-            previous.appendSource(sourceRecord(message, raw, tab, sender));
+            previous.appendSource(sourceRecord(message, raw, tab, sender, custom.categories()));
             MESSAGE_STORE.addSource(previous, previous.sourceRecords().get(previous.sourceRecords().size() - 1));
             KeywordAlerts.notifyIfMatched(raw);
-            if (filterEnabled(tab) || isSearching()) refreshChat();
+            if (visible || isSearching()) refreshChat();
             saveHistory(false);
             return false;
         }
@@ -199,24 +272,42 @@ public class ChatSorter implements ClientModInitializer {
         String tech = "category=" + tab.name() + "; sender=" + sender
             + "; signature=" + (signature == null ? "none" : signature)
             + "; indicator=" + (indicator == null || indicator.text() == null ? "none" : indicator.text().getString());
-        ChatHistoryEntry entry = new ChatHistoryEntry(sourceRecord(message, raw, tab, sender), now, tab, tech, false);
+        ChatHistoryEntry entry = new ChatHistoryEntry(sourceRecord(message, raw, tab, sender, custom.categories()), now, tab, tech, false);
         addToMemory(entry);
         lastReceivedEntry = entry;
         HUD_ENTRIES.put(message, entry);
-        if (!filterEnabled(tab)) { unread[tab.ordinal()]++; unread[Tab.ALL.ordinal()]++; }
+        if (!visible) { unread[tab.ordinal()]++; unread[Tab.ALL.ordinal()]++; }
         saveHistory(false);
         if (isSearching()) return raw.toLowerCase(Locale.ROOT).contains(searchQuery);
-        return filterEnabled(tab);
+        return visible;
     }
 
     private static void addToMemory(ChatHistoryEntry entry) {
         List<ChatHistoryEntry> evicted = MESSAGE_STORE.add(entry, MAX_CHAT_HISTORY);
         if (!evicted.isEmpty()) HUD_ENTRIES.values().removeIf(evicted::contains);
     }
-    private static ChatMessageRecord sourceRecord(Text message, String raw, Tab tab, String sender) {
+    private static ChatMessageRecord sourceRecord(Text message, String raw, Tab tab, String sender, Set<String> customCategories) {
         String senderId = sender == null || sender.isBlank() ? "" : sender.strip().toLowerCase(Locale.ROOT);
+        java.util.LinkedHashSet<String> categories = new java.util.LinkedHashSet<>();
+        categories.add(tab.name()); categories.addAll(customCategories);
         return new ChatMessageRecord(UUID.randomUUID(), activeServerKey, activeSessionId, Instant.now(),
-            senderId, sender, raw, message, "", Set.of(tab.name()), tab == Tab.DM ? senderId : "", 1, false);
+            senderId, sender, raw, message, "", categories, tab == Tab.DM ? senderId : "", 1, false);
+    }
+    private static boolean visibleByFilters(ChatHistoryEntry entry) {
+        if (favoritesEnabled && ChatBookmarks.contains(entry)) return true;
+        boolean moved = ChatExperienceSettings.customFiltersEnabled && entry.categories.contains(ChatUserFilters.MOVED_MARKER);
+        if (!moved && filterEnabled(entry.tab)) return true;
+        if (ChatExperienceSettings.customFiltersEnabled)
+            for (String category : entry.categories) if (!category.startsWith("@") && ChatUserFilters.categoryEnabled(category)) return true;
+        return false;
+    }
+    private static Tab tabFrom(Set<String> categories) {
+        if (categories != null) for (String category : categories) try { return Tab.valueOf(category); } catch (IllegalArgumentException ignored) { }
+        return Tab.CONSOLE;
+    }
+    public static boolean isBookmarked(ChatHistoryEntry entry) { return ChatBookmarks.contains(entry); }
+    public static boolean toggleBookmark(ChatHistoryEntry entry) {
+        boolean added=ChatBookmarks.toggle(entry); refreshChat(); return added;
     }
     private static void saveHistory(boolean force) { if (activeServerKey != null) ChatHistoryStorage.save(activeServerKey, MESSAGE_STORE.all(), force); }
     private static void clearMemory() {
@@ -224,7 +315,9 @@ public class ChatSorter implements ClientModInitializer {
         HUD_ENTRIES.clear();
         Arrays.fill(unread, 0);
         Arrays.fill(enabledFilters, true);
+        favoritesEnabled = false;
         searchQuery = "";
+        ChatSelection.clear();
         lastReceivedEntry = null;
     }
     public static void clearCurrentServerHistory() {

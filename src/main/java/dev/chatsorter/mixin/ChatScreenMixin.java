@@ -22,6 +22,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 
 @Mixin(ChatScreen.class)
 public abstract class ChatScreenMixin extends Screen {
@@ -30,10 +32,11 @@ public abstract class ChatScreenMixin extends Screen {
     private boolean chatsorter$copyMenuHasJump;
     private int chatsorter$copyMenuX, chatsorter$copyMenuY;
     private static final int COPY_MENU_WIDTH = 190, COPY_MENU_ROW = 18;
+    private boolean chatsorter$historyFocused;
     @Inject(method = "init", at = @At("TAIL"))
     private void chatsorter$initSearch(CallbackInfo ci) {
         int w = Math.min(210, Math.max(100, this.width / 3));
-        chatsorter$search = new TextFieldWidget(this.textRenderer, this.width - w - 5, 29, w, 17, Text.literal("Поиск во всех чатах"));
+        chatsorter$search = new TextFieldWidget(this.textRenderer, this.width - w - 5, 49, w, 17, Text.literal("Поиск во всех чатах"));
         chatsorter$search.setMaxLength(120);
         chatsorter$search.setPlaceholder(Text.literal("Поиск во всех чатах..."));
         chatsorter$search.setText(ChatSorter.searchQuery());
@@ -52,27 +55,58 @@ public abstract class ChatScreenMixin extends Screen {
     private void chatsorter$render(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         chatsorter$pollDrag();
         // Invisible hit areas: drag the message body; resize by grabbing its edges.
-        ChatSorter.Tab[] tabs = ChatSorter.Tab.values();
-        int x = chatsorter$tabX();
+        List<ChatSorter.FilterToggle> toggles = ChatSorter.filterToggles(this.width);
+        int builtinCount = ChatSorter.Tab.values().length;
+        int x = chatsorter$tabX(builtinCount);
         int y = 7;
-        int width = Math.max(54, Math.min(100, (this.width - 12) / tabs.length));
+        int width = chatsorter$tabWidth(builtinCount);
         int h = 17;
-        for (int i = 0; i < tabs.length; i++) {
+        for (int i = 0; i < Math.min(builtinCount, toggles.size()); i++) {
             int left = x + i * width;
-            boolean active = ChatSorter.filterEnabled(tabs[i]);
+            ChatSorter.FilterToggle toggle = toggles.get(i);
+            boolean active = toggle.enabled();
             boolean hovered = mouseX >= left && mouseX < left + width - 2 && mouseY >= y && mouseY < y + h;
             int bg = active ? dev.chatsorter.ChatTheme.accent() : hovered ? 0xDB393E42 : 0xCB25282D;
             context.fill(left, y, left + width - 2, y + h, bg);
             if (active) context.fill(left, y + h - 2, left + width - 2, y + h, dev.chatsorter.ChatTheme.bright());
-            String label = tabs[i].title;
+            String label = this.textRenderer.trimToWidth(toggle.label(), Math.max(20, width - 8));
             int textX = left + (width - 2 - this.textRenderer.getWidth(label)) / 2;
             context.drawTextWithShadow(this.textRenderer, label, textX, y + 4, active ? dev.chatsorter.ChatTheme.text() : 0xFFD3D5D6);
-            int count = ChatSorter.unread[tabs[i].ordinal()];
+            int count = 0;
+            try { count = ChatSorter.unread[ChatSorter.Tab.valueOf(toggle.key()).ordinal()]; } catch (IllegalArgumentException ignored) { }
             if (count > 0) {
                 String number = count > 999 ? "999+" : Integer.toString(count);
                 int bx = left + width - 4 - this.textRenderer.getWidth(number);
                 context.fill(bx - 3, y - 7, left + width - 1, y + 3, 0xE0A53737);
                 context.drawTextWithShadow(this.textRenderer, number, bx, y - 6, 0xFFFFFFFF);
+            }
+        }
+        int customCount = toggles.size() - builtinCount - 1;
+        if (toggles.size() > builtinCount) {
+            ChatSorter.FilterToggle favorite=toggles.get(builtinCount);
+            boolean favHover=mouseX>=5&&mouseX<85&&mouseY>=27&&mouseY<44;
+            context.fill(5,27,85,44,favorite.enabled()?ChatTheme.accent():favHover?0xDB393E42:0xCB25282D);
+            if(favorite.enabled())context.fill(5,42,85,44,ChatTheme.bright());
+            context.drawCenteredTextWithShadow(this.textRenderer,"Избранное",45,31,favorite.enabled()?ChatTheme.text():0xFFD3D5D6);
+        }
+        if (customCount > 0) {
+            int cy=27, cw=Math.max(42,Math.min(100,(this.width-160)/customCount));
+            int cx=this.width-cw*customCount-4;
+            for(int i=0;i<customCount;i++) {
+                ChatSorter.FilterToggle toggle=toggles.get(builtinCount+1+i); int left=cx+i*cw;
+                boolean active=toggle.enabled(),hovered=mouseX>=left&&mouseX<left+cw-2&&mouseY>=cy&&mouseY<cy+h;
+                context.fill(left,cy,left+cw-2,cy+h,active?ChatTheme.accent():hovered?0xDB393E42:0xCB25282D);
+                if(active) context.fill(left,cy+h-2,left+cw-2,cy+h,ChatTheme.bright());
+                String label=this.textRenderer.trimToWidth(toggle.label(),Math.max(18,cw-8));
+                context.drawCenteredTextWithShadow(this.textRenderer,label,left+(cw-2)/2,cy+4,active?ChatTheme.text():0xFFD3D5D6);
+            }
+            String page=ChatSorter.customFilterPageLabel(this.width);
+            if(!page.isEmpty()) {
+                context.fill(90,27,107,44,mouseX>=90&&mouseX<107&&mouseY>=27&&mouseY<44?ChatTheme.accent():0xCB25282D);
+                context.drawCenteredTextWithShadow(this.textRenderer,"‹",98,31,0xFFFFFFFF);
+                context.fill(110,27,127,44,mouseX>=110&&mouseX<127&&mouseY>=27&&mouseY<44?ChatTheme.accent():0xCB25282D);
+                context.drawCenteredTextWithShadow(this.textRenderer,"›",118,31,0xFFFFFFFF);
+                context.drawTextWithShadow(this.textRenderer,page,132,31,0xFFD3D5D6);
             }
         }
         if (RulesIntegration.available()) {
@@ -83,6 +117,8 @@ public abstract class ChatScreenMixin extends Screen {
             context.drawCenteredTextWithShadow(this.textRenderer, "Правила", left + buttonWidth / 2, top + 4,
                 hovered ? ChatTheme.text() : 0xFFD3D5D6);
         }
+        chatsorter$renderSelection(context, mouseX, mouseY);
+        chatsorter$renderSelectedRows(context);
         chatsorter$renderCopyMenu(context, mouseX, mouseY);
     }
 
@@ -99,6 +135,10 @@ public abstract class ChatScreenMixin extends Screen {
     private void chatsorter$click(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
         double mouseX = click.x();
         double mouseY = click.y();
+        if (click.button() == 0 && !ChatSelection.isEmpty() && chatsorter$selectionToolbarClick(mouseX, mouseY)) {
+            cir.setReturnValue(true);
+            return;
+        }
         if (chatsorter$copyMenuEntry != null && click.button() == 0) {
             int row = (int)((mouseY - chatsorter$copyMenuY) / COPY_MENU_ROW);
             int menuRows = chatsorter$copyMenuRows();
@@ -129,19 +169,175 @@ public abstract class ChatScreenMixin extends Screen {
             return;
         }
         if (click.button() != 0) return;
-        int x = chatsorter$tabX();
+        List<ChatSorter.FilterToggle> toggles = ChatSorter.filterToggles(this.width);
+        int builtinCount = ChatSorter.Tab.values().length;
+        if (click.button() == 0 && mouseY >= 27 && mouseY < 44 && mouseX >= 5 && mouseX < 85) {
+            ChatSorter.toggleFilterKey("favorites"); cir.setReturnValue(true); return;
+        }
+        if (click.button() == 0 && mouseY >= 27 && mouseY < 44 && !ChatSorter.customFilterPageLabel(this.width).isEmpty()) {
+            if (mouseX >= 90 && mouseX < 107) { ChatSorter.moveCustomFilterPage(-1,this.width); cir.setReturnValue(true); return; }
+            if (mouseX >= 110 && mouseX < 127) { ChatSorter.moveCustomFilterPage(1,this.width); cir.setReturnValue(true); return; }
+        }
+        if (click.button() == 0 && mouseY >= 27 && mouseY < 44 && toggles.size() > builtinCount+1) {
+            int count=toggles.size()-builtinCount-1,cw=Math.max(42,Math.min(100,(this.width-160)/count));
+            int cx=this.width-cw*count-4;
+            for(int i=0;i<count;i++) if(mouseX>=cx+i*cw&&mouseX<cx+i*cw+cw-2) {
+                ChatSorter.setSearchQuery(""); if(chatsorter$search!=null) chatsorter$search.setText("");
+                ChatSorter.toggleFilterKey(toggles.get(builtinCount+1+i).key()); cir.setReturnValue(true); return;
+            }
+        }
+        if (Screen.hasControlDown() || Screen.hasShiftDown()) {
+            ChatHistoryEntry entry = chatsorter$entryAt(mouseX, mouseY);
+            if (entry != null) {
+                ChatSelection.click(entry, Screen.hasControlDown(), Screen.hasShiftDown(), ChatSorter.visibleEntriesForSelection());
+                chatsorter$historyFocused = true;
+                cir.setReturnValue(true);
+                return;
+            }
+        }
+        if (chatsorter$insideChat(mouseX, mouseY)) chatsorter$historyFocused = true;
+        int x = chatsorter$tabX(builtinCount);
         int y = 7;
-        int width = Math.max(54, Math.min(100, (this.width - 12) / ChatSorter.Tab.values().length));
+        int width = chatsorter$tabWidth(builtinCount);
         if (mouseY < y || mouseY >= y + 17) return;
-        for (int i = 0; i < ChatSorter.Tab.values().length; i++) {
+        for (int i = 0; i < Math.min(builtinCount,toggles.size()); i++) {
             int left = x + i * width;
             if (mouseX >= left && mouseX < left + width - 2) {
                 ChatSorter.setSearchQuery("");
                 if (chatsorter$search != null) chatsorter$search.setText("");
-                ChatSorter.toggleFilter(ChatSorter.Tab.values()[i]);
+                ChatSorter.toggleFilterKey(toggles.get(i).key());
                 cir.setReturnValue(true);
                 return;
             }
+        }
+    }
+
+    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+    private void chatsorter$selectAll(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+        if (keyCode == GLFW.GLFW_KEY_A && Screen.hasControlDown() && chatsorter$historyFocused
+                && chatsorter$search != null && !chatsorter$search.isFocused()) {
+            ChatSelection.selectAll(ChatSorter.visibleEntriesForSelection());
+            cir.setReturnValue(true);
+        }
+    }
+
+    private boolean chatsorter$insideChat(double x, double y) {
+        return x >= chatsorter$leftEdge() && x <= chatsorter$rightEdge()
+            && y >= chatsorter$topEdge() && y <= chatsorter$bottomEdge();
+    }
+
+    private ChatHistoryEntry chatsorter$entryAt(double mouseX, double mouseY) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null) return null;
+        double scale = mc.options.getChatScale().getValue();
+        if (scale <= 0) return null;
+        double chatX = (mouseX - ChatPosition.x) / scale;
+        double chatY = (this.height - 40 + ChatPosition.y - mouseY) / scale;
+        double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0);
+        int index = (int)Math.floor(chatY / lineHeight);
+        if (chatX < 0 || chatX > 400 || index < 0 || chatY < 0) return null;
+        ChatHud hud = mc.inGameHud.getChatHud();
+        List<ChatHudLine.Visible> lines = ((ChatHudAccess)hud).chatsorter$getVisibleMessages();
+        if (index >= lines.size()) return null;
+        int bottom = index;
+        while (bottom > 0 && !lines.get(bottom).endOfEntry()) bottom--;
+        int messageIndex = 0;
+        for (int row = 0; row <= bottom; row++) if (lines.get(row).endOfEntry()) messageIndex++;
+        List<ChatHudLine> messages = ((ChatHudAccess)hud).chatsorter$getMessages();
+        int sourceIndex = messageIndex - 1;
+        return sourceIndex < 0 || sourceIndex >= messages.size() ? null
+            : ChatSorter.entryForHudMessage(messages.get(sourceIndex).content());
+    }
+
+    private void chatsorter$renderSelection(DrawContext context, int mouseX, int mouseY) {
+        if (ChatSelection.isEmpty()) return;
+        int x = 5, y = 69, gap = 3;
+        int[] widths = {48, 57, 57, 38, 44, 44};
+        String[] labels = {"Текст", "+время", "+ники", "TXT", "JSON", "Снять"};
+        context.fill(x - 2, y - 2, x + 48 + 57 + 57 + 38 + 44 + 44 + gap * 5 + 2, y + 19, 0xE8191C20);
+        int left = x;
+        for (int i = 0; i < labels.length; i++) {
+            boolean hovered = mouseX >= left && mouseX < left + widths[i] && mouseY >= y && mouseY < y + 17;
+            context.fill(left, y, left + widths[i], y + 17, hovered ? ChatTheme.accent() : 0xCB25282D);
+            context.drawCenteredTextWithShadow(this.textRenderer, labels[i], left + widths[i] / 2, y + 4, 0xFFE2E5E8);
+            left += widths[i] + gap;
+        }
+        int repeatY = y + 20;
+        String repeatLabel = "Повторы: " + (ChatSelection.expandsRepeats() ? "каждое сообщение" : "одна строка");
+        boolean repeatHover = mouseX >= x && mouseX < x + 164 && mouseY >= repeatY && mouseY < repeatY + 17;
+        context.fill(x, repeatY, x + 164, repeatY + 17, repeatHover ? ChatTheme.accent() : 0xCB25282D);
+        context.drawCenteredTextWithShadow(this.textRenderer, repeatLabel, x + 82, repeatY + 4, 0xFFE2E5E8);
+        context.drawTextWithShadow(this.textRenderer, "Выделено: " + ChatSelection.size(), x + 171, repeatY + 4, 0xFFFFFFFF);
+    }
+
+    private boolean chatsorter$selectionToolbarClick(double mouseX, double mouseY) {
+        int y = 69, left = 5, gap = 3;
+        int[] widths = {48, 57, 57, 38, 44, 44};
+        if (mouseY >= y + 20 && mouseY < y + 37 && mouseX >= 5 && mouseX < 169) {
+            ChatSelection.toggleRepeatExpansion();
+            return true;
+        }
+        if (mouseY < y || mouseY >= y + 17) return false;
+        for (int i = 0; i < widths.length; i++) {
+            if (mouseX >= left && mouseX < left + widths[i]) {
+                List<ChatHistoryEntry> visible = ChatSorter.visibleEntriesForSelection();
+                String clipboard = switch (i) {
+                    case 0 -> ChatSelection.plainText(visible, false, false);
+                    case 1 -> ChatSelection.plainText(visible, true, false);
+                    case 2 -> ChatSelection.plainText(visible, true, true);
+                    default -> "";
+                };
+                if (i <= 2) {
+                    if (!clipboard.isBlank()) MinecraftClient.getInstance().keyboard.setClipboard(clipboard);
+                } else if (i == 3 || i == 4) {
+                    boolean json = i == 4;
+                    List<ChatHistoryEntry> selected = ChatSelection.selected(visible);
+                    CompletableFuture.runAsync(() -> {
+                        try {
+                            Path path = ChatSelection.export(selected, json);
+                            MinecraftClient.getInstance().execute(() -> {
+                                MinecraftClient mc = MinecraftClient.getInstance();
+                                if (mc.player != null) mc.player.sendMessage(Text.literal("[ChatSorter] Экспорт сохранён: " + path.getFileName()), true);
+                            });
+                        } catch (Exception exception) {
+                            MinecraftClient.getInstance().execute(() -> {
+                                MinecraftClient mc = MinecraftClient.getInstance();
+                                if (mc.player != null) mc.player.sendMessage(Text.literal("[ChatSorter] Ошибка экспорта: " + exception.getMessage()), true);
+                            });
+                        }
+                    });
+                } else ChatSelection.clear();
+                return true;
+            }
+            left += widths[i] + gap;
+        }
+        return false;
+    }
+
+    private void chatsorter$renderSelectedRows(DrawContext context) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null || ChatSelection.isEmpty()) return;
+        ChatHud hud = mc.inGameHud.getChatHud();
+        List<ChatHudLine.Visible> lines = ((ChatHudAccess)hud).chatsorter$getVisibleMessages();
+        List<ChatHudLine> messages = ((ChatHudAccess)hud).chatsorter$getMessages();
+        double scale = mc.options.getChatScale().getValue();
+        double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0) * scale;
+        int row = 0, messageIndex = 0;
+        while (row < lines.size()) {
+            int groupStart = row;
+            while (row < lines.size() - 1 && !lines.get(row).endOfEntry()) row++;
+            int groupEnd = row;
+            if (row < lines.size() && lines.get(row).endOfEntry()) messageIndex++;
+            int sourceIndex = messageIndex - 1;
+            if (sourceIndex >= 0 && sourceIndex < messages.size()
+                    && ChatSelection.contains(ChatSorter.entryForHudMessage(messages.get(sourceIndex).content()))) {
+                for (int line = groupStart; line <= groupEnd; line++) {
+                    int bottom = (int)Math.round(this.height - 40 + ChatPosition.y - line * lineHeight);
+                    int top = (int)Math.round(bottom - lineHeight);
+                    context.fill(ChatPosition.x, top, ChatPosition.x + Math.max(2, (int)Math.ceil(2 * scale)), bottom, 0xD65AA9FF);
+                }
+            }
+            row = groupEnd + 1;
         }
     }
 
@@ -177,9 +373,12 @@ public abstract class ChatScreenMixin extends Screen {
         }
     }
 
-    private int chatsorter$tabX() {
-        int width = Math.max(54, Math.min(100, (this.width - 12) / ChatSorter.Tab.values().length));
-        return Math.max(2, this.width - width * ChatSorter.Tab.values().length - 4);
+    private int chatsorter$tabWidth(int count) {
+        return Math.max(42, Math.min(100, (this.width - 12) / Math.max(1, count)));
+    }
+    private int chatsorter$tabX(int count) {
+        int width = chatsorter$tabWidth(count);
+        return Math.max(2, this.width - width * count - 4);
     }
 
     private boolean chatsorter$openCopyMenu(double mouseX, double mouseY) {
@@ -205,21 +404,22 @@ public abstract class ChatScreenMixin extends Screen {
         ChatHistoryEntry entry = ChatSorter.entryForHudMessage(messages.get(sourceIndex).content());
         if (entry == null) return false;
         chatsorter$copyMenuEntry = entry;
-        chatsorter$copyMenuHasJump = ChatSorter.isSearching();
+        chatsorter$copyMenuHasJump = ChatSorter.isSearching() && !entry.bookmarkFallback;
         chatsorter$copyMenuX = Math.max(4, Math.min(this.width - COPY_MENU_WIDTH - 4, (int)mouseX));
         chatsorter$copyMenuY = Math.max(4, Math.min(this.height - COPY_MENU_ROW * chatsorter$copyMenuRows() - 4, (int)mouseY));
         return true;
     }
-    private int chatsorter$copyMenuRows() { return chatsorter$copyMenuHasJump ? 7 : 6; }
+    private int chatsorter$copyMenuRows() { return chatsorter$copyMenuHasJump ? 8 : 7; }
     private void chatsorter$renderCopyMenu(DrawContext context, int mouseX, int mouseY) {
         ChatHistoryEntry entry = chatsorter$copyMenuEntry;
         if (entry == null) return;
         String[] copyLabels = {"Копировать текст", "Текст + исходное время", "Копировать с форматированием",
             entry.sender.isBlank() ? "Ник отправителя не распознан" : "Копировать ник отправителя",
-            ChatSorter.copyLink(entry).isBlank() ? "Ссылка отсутствует" : "Копировать ссылку", "Техническая информация"};
+            ChatSorter.copyLink(entry).isBlank() ? "Ссылка отсутствует" : "Копировать ссылку", "Техническая информация",
+            ChatSorter.isBookmarked(entry) ? "Убрать из избранного" : "Добавить в избранное"};
         String[] labels = chatsorter$copyMenuHasJump
-            ? java.util.Arrays.copyOf(copyLabels, 7) : copyLabels;
-        if (chatsorter$copyMenuHasJump) labels[6] = "Показать в переписке";
+            ? java.util.Arrays.copyOf(copyLabels, 8) : copyLabels;
+        if (chatsorter$copyMenuHasJump) labels[7] = "Показать в переписке";
         int x = chatsorter$copyMenuX, y = chatsorter$copyMenuY;
         int menuRows = chatsorter$copyMenuRows();
         context.fill(x - 1, y - 1, x + COPY_MENU_WIDTH + 1, y + COPY_MENU_ROW * menuRows + 1, 0xFF080A0D);
@@ -236,9 +436,15 @@ public abstract class ChatScreenMixin extends Screen {
     private void chatsorter$copyOption(int option) {
         ChatHistoryEntry entry = chatsorter$copyMenuEntry;
         chatsorter$copyMenuEntry = null;
-        boolean jump = chatsorter$copyMenuHasJump && option == 6;
+        boolean jump = chatsorter$copyMenuHasJump && option == 7;
         chatsorter$copyMenuHasJump = false;
         if (entry == null) return;
+        if (option == 6) {
+            boolean added=ChatSorter.toggleBookmark(entry);
+            MinecraftClient mc=MinecraftClient.getInstance();
+            if(mc.player!=null)mc.player.sendMessage(Text.literal(added?"[ChatSorter] Добавлено в избранное":"[ChatSorter] Удалено из избранного"),true);
+            return;
+        }
         if (jump) {
             if (chatsorter$search != null) chatsorter$search.setText("");
             ChatSorter.showInConversation(entry);
