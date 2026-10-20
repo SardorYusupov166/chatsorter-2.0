@@ -1,0 +1,1 @@
+{"required":true,"package":"dev.chatsorter.mixin","compatibilityLevel":"JAVA_21","client":["ChatHudMixin","ChatHudAccess","ChatScreenMixin"],"injectors":{"defaultRequire":1}}

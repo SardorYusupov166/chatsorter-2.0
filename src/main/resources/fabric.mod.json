@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "chatsorter",
+  "version": "${version}",
+  "name": "ChatSorter",
+  "description": "Клиентский мод для сортировки чата Minecraft, созданный mlpgod специально для сервера MigosMC. / Client-side chat sorter made by mlpgod for MigosMC.",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.chatsorter.ChatSorter"
+    ]
+  },
+  "mixins": [
+    "chatsorter.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "fabric-api": "*",
+    "minecraft": "1.21.11",
+    "java": ">=21"
+  },
+  "authors": [
+    "mlpgod"
+  ],
+  "custom": {
+    "chatsorter:server": "MigosMC",
+    "chatsorter:credit": "Создан mlpgod для сервера MigosMC"
+  }
+}
