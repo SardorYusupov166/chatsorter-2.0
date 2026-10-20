@@ -5,6 +5,7 @@ import dev.chatsorter.ChatHistoryEntry;
 import dev.chatsorter.ChatPosition;
 import dev.chatsorter.KeywordAlerts;
 import dev.chatsorter.ChatTheme;
+import dev.chatsorter.ChatSelection;
 import dev.chatsorter.RulesIntegration;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ChatScreen;
@@ -186,10 +187,12 @@ public abstract class ChatScreenMixin extends Screen {
                 ChatSorter.toggleFilterKey(toggles.get(builtinCount+1+i).key()); cir.setReturnValue(true); return;
             }
         }
-        if (Screen.hasControlDown() || Screen.hasShiftDown()) {
+        boolean controlDown = chatsorter$modifierDown(GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_RIGHT_CONTROL);
+        boolean shiftDown = chatsorter$modifierDown(GLFW.GLFW_KEY_LEFT_SHIFT, GLFW.GLFW_KEY_RIGHT_SHIFT);
+        if (controlDown || shiftDown) {
             ChatHistoryEntry entry = chatsorter$entryAt(mouseX, mouseY);
             if (entry != null) {
-                ChatSelection.click(entry, Screen.hasControlDown(), Screen.hasShiftDown(), ChatSorter.visibleEntriesForSelection());
+                ChatSelection.click(entry, controlDown, shiftDown, ChatSorter.visibleEntriesForSelection());
                 chatsorter$historyFocused = true;
                 cir.setReturnValue(true);
                 return;
@@ -214,11 +217,19 @@ public abstract class ChatScreenMixin extends Screen {
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void chatsorter$selectAll(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
-        if (keyCode == GLFW.GLFW_KEY_A && Screen.hasControlDown() && chatsorter$historyFocused
+        if (keyCode == GLFW.GLFW_KEY_A
+                && chatsorter$modifierDown(GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_RIGHT_CONTROL)
+                && chatsorter$historyFocused
                 && chatsorter$search != null && !chatsorter$search.isFocused()) {
             ChatSelection.selectAll(ChatSorter.visibleEntriesForSelection());
             cir.setReturnValue(true);
         }
+    }
+
+    private boolean chatsorter$modifierDown(int firstKey, int secondKey) {
+        long window = MinecraftClient.getInstance().getWindow().getHandle();
+        return GLFW.glfwGetKey(window, firstKey) == GLFW.GLFW_PRESS
+            || GLFW.glfwGetKey(window, secondKey) == GLFW.GLFW_PRESS;
     }
 
     private boolean chatsorter$insideChat(double x, double y) {

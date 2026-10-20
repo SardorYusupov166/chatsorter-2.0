@@ -154,14 +154,14 @@ public class ChatSorter implements ClientModInitializer {
                 }
             }
             if (favoritesEnabled) {
-                for (ChatMessageRecord source : ChatBookmarks.all()) {
-                    if (MESSAGE_STORE.findSource(source.id()) != null) continue;
-                    ChatSorter.Tab tab = tabFrom(source.categories());
-                    ChatHistoryEntry fallback = new ChatHistoryEntry(source,
-                        LocalDateTime.ofInstant(source.receivedAt(), java.time.ZoneId.systemDefault()).format(MESSAGE_TIME),
+                for (ChatMessageRecord bookmarkSource : ChatBookmarks.all()) {
+                    if (MESSAGE_STORE.findSource(bookmarkSource.id()) != null) continue;
+                    ChatSorter.Tab tab = tabFrom(bookmarkSource.categories());
+                    ChatHistoryEntry fallback = new ChatHistoryEntry(bookmarkSource,
+                        LocalDateTime.ofInstant(bookmarkSource.receivedAt(), java.time.ZoneId.systemDefault()).format(MESSAGE_TIME),
                         tab, "Закладка сохранена отдельно от истории", false);
                     fallback.bookmarkFallback = true;
-                    if (!isSearching() || source.rawText().toLowerCase(Locale.ROOT).contains(searchQuery)) {
+                    if (!isSearching() || bookmarkSource.rawText().toLowerCase(Locale.ROOT).contains(searchQuery)) {
                         Text display=fallback.displayText(); HUD_ENTRIES.put(display,fallback); hud.addMessage(display);
                     }
                 }
