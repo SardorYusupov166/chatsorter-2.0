@@ -1,0 +1,23 @@
+name: Build ChatSorter
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.2.1'
+      - name: Build
+        run: gradle build --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChatSorter-mc1.21.11
+          path: build/libs/*.jar
