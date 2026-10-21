@@ -12,6 +12,7 @@ import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.gui.Click;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
@@ -216,10 +217,8 @@ public abstract class ChatScreenMixin extends Screen {
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void chatsorter$selectAll(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
-        if (keyCode == GLFW.GLFW_KEY_A
-                && chatsorter$modifierDown(GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_RIGHT_CONTROL)
-                && chatsorter$historyFocused
+    private void chatsorter$selectAll(KeyInput input, CallbackInfoReturnable<Boolean> cir) {
+        if (input.isSelectAll() && chatsorter$historyFocused
                 && chatsorter$search != null && !chatsorter$search.isFocused()) {
             ChatSelection.selectAll(ChatSorter.visibleEntriesForSelection());
             cir.setReturnValue(true);
