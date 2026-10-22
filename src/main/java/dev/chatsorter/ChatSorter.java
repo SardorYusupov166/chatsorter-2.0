@@ -15,6 +15,7 @@ import net.minecraft.text.Text;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.IdentityHashMap;
@@ -27,7 +28,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatSorter implements ClientModInitializer {
-    public static final String VERSION = "2.0.0-alpha.4";
+    public static final String VERSION = "2.0.0-alpha.8";
     private static final int MAX_CHAT_HISTORY = 16_384;
     private static final DateTimeFormatter MESSAGE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     public static int maxChatHistory() { return MAX_CHAT_HISTORY; }
@@ -55,6 +56,9 @@ public class ChatSorter implements ClientModInitializer {
     private static final Pattern CHAT_NAME = Pattern.compile("^<([^>]{1,32})>\\s*.+$");
     private static final Pattern TAGGED_NAME = Pattern.compile("^\\[\\s*[GLSɢʟꜱ]\\s*\\]\\s*([A-Za-z0-9_]{1,32})\\s*[:»>]\\s*.+$",
         Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    private static final Pattern ARROW_MESSAGE_SENDER = Pattern.compile(
+        ".*(?:^|[^A-Za-z0-9_])([A-Za-z0-9_]{3,16})\\s*(?:->|→|<-|←)\\s*.+$");
+    private static final Pattern LEADING_CHAT_TIMESTAMP = Pattern.compile("^\\s*\\[\\d{1,2}:\\d{2}:\\d{2}\\]\\s*");
     private static final Pattern URL = Pattern.compile("(?i)\\bhttps?://[^\\s<>]+\\b");
     private static final Pattern GAME_TAG = Pattern.compile("\\[\\s*([GLSɢʟꜱ])\\s*\\]", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
 
@@ -82,10 +86,21 @@ public class ChatSorter implements ClientModInitializer {
     public static List<ChatHistoryEntry> entries(Tab tab) { return MESSAGE_STORE.inCategory(tab); }
     /** Rows currently represented in the chat view, in chronological order. */
     public static List<ChatHistoryEntry> visibleEntriesForSelection() {
-        ArrayList<ChatHistoryEntry> result = new ArrayList<>();
-        for (ChatHistoryEntry entry : MESSAGE_STORE.all()) {
+        return filteredEntriesForCurrentView();
+    }
+
+    private static List<ChatHistoryEntry> filteredEntriesForCurrentView() {
+        int limit = ChatExperienceSettings.clampDisplayLimit(ChatExperienceSettings.chatDisplayLimit);
+        List<ChatHistoryEntry> all = MESSAGE_STORE.all();
+        int first = isSearching() ? 0 : Math.max(0, all.size() - limit);
+        ArrayDeque<ChatHistoryEntry> recent = new ArrayDeque<>(limit);
+        for (int index = first; index < all.size(); index++) {
+            ChatHistoryEntry entry = all.get(index);
             boolean matchesSearch = !isSearching() || entry.message.getString().toLowerCase(Locale.ROOT).contains(searchQuery);
-            if (matchesSearch && (isSearching() || visibleByFilters(entry))) result.add(entry);
+            if (matchesSearch && (isSearching() || visibleByFilters(entry))) {
+                if (recent.size() == limit) recent.removeFirst();
+                recent.addLast(entry);
+            }
         }
         if (favoritesEnabled) {
             for (ChatMessageRecord source : ChatBookmarks.all()) {
@@ -96,9 +111,11 @@ public class ChatSorter implements ClientModInitializer {
                     LocalDateTime.ofInstant(source.receivedAt(), java.time.ZoneId.systemDefault()).format(MESSAGE_TIME),
                     tab, "Закладка сохранена отдельно от истории", false);
                 fallback.bookmarkFallback = true;
-                result.add(fallback);
+                if (recent.size() == limit) recent.removeFirst();
+                recent.addLast(fallback);
             }
         }
+        ArrayList<ChatHistoryEntry> result = new ArrayList<>(recent);
         result.sort(java.util.Comparator.comparing((ChatHistoryEntry entry) -> entry.receivedAt));
         return List.copyOf(result);
     }
@@ -143,28 +160,10 @@ public class ChatSorter implements ClientModInitializer {
         HUD_ENTRIES.clear();
         try {
             hud.clear(false);
-            List<ChatHistoryEntry> source = MESSAGE_STORE.all();
-            for (ChatHistoryEntry entry : source) {
-                boolean matchesSearch = !isSearching() || entry.message.getString().toLowerCase(Locale.ROOT).contains(searchQuery);
-                boolean matchesFilters = isSearching() || visibleByFilters(entry);
-                if (matchesSearch && matchesFilters) {
-                    Text display = entry.displayText();
-                    HUD_ENTRIES.put(display, entry);
-                    hud.addMessage(display);
-                }
-            }
-            if (favoritesEnabled) {
-                for (ChatMessageRecord bookmarkSource : ChatBookmarks.all()) {
-                    if (MESSAGE_STORE.findSource(bookmarkSource.id()) != null) continue;
-                    ChatSorter.Tab tab = tabFrom(bookmarkSource.categories());
-                    ChatHistoryEntry fallback = new ChatHistoryEntry(bookmarkSource,
-                        LocalDateTime.ofInstant(bookmarkSource.receivedAt(), java.time.ZoneId.systemDefault()).format(MESSAGE_TIME),
-                        tab, "Закладка сохранена отдельно от истории", false);
-                    fallback.bookmarkFallback = true;
-                    if (!isSearching() || bookmarkSource.rawText().toLowerCase(Locale.ROOT).contains(searchQuery)) {
-                        Text display=fallback.displayText(); HUD_ENTRIES.put(display,fallback); hud.addMessage(display);
-                    }
-                }
+            for (ChatHistoryEntry entry : filteredEntriesForCurrentView()) {
+                Text display = entry.displayText();
+                HUD_ENTRIES.put(display, entry);
+                hud.addMessage(display);
             }
         } finally { replaying = false; }
     }
@@ -258,7 +257,7 @@ public class ChatSorter implements ClientModInitializer {
         ChatHistoryEntry previous = lastReceivedEntry;
         if (ChatExperienceSettings.mergeRepeats && previous != null && !previous.restored
                 && previous.tab == tab && !sender.isBlank() && previous.sender.equalsIgnoreCase(sender)
-                && normalize(previous.message.getString()).equals(normalize(raw))) {
+                && normalizeRepeatText(previous.message.getString()).equals(normalizeRepeatText(raw))) {
             previous.appendSource(sourceRecord(message, raw, tab, sender, custom.categories()));
             MESSAGE_STORE.addSource(previous, previous.sourceRecords().get(previous.sourceRecords().size() - 1));
             KeywordAlerts.notifyIfMatched(raw);
@@ -382,6 +381,10 @@ public class ChatSorter implements ClientModInitializer {
         return b.toString();
     }
     private static String normalize(String text) { return text.replace('\u00a0', ' ').replaceAll("\\s+", " ").strip(); }
+    private static String normalizeRepeatText(String text) {
+        String withoutTimestamp = LEADING_CHAT_TIMESTAMP.matcher(text == null ? "" : text).replaceFirst("");
+        return normalize(withoutTimestamp);
+    }
     private static String findSender(String raw, Tab tab) {
         String s = raw.replace('\u00a0', ' ').replaceAll("§[0-9a-fk-orA-FK-OR]", "").strip();
         Matcher m = PRIVATE_MESSAGE.matcher(s);
@@ -390,6 +393,8 @@ public class ChatSorter implements ClientModInitializer {
         if (m.matches()) return (m.group(2).equals("<-") || m.group(2).equals("←") ? "" : m.group(1).strip());
         m = CHAT_NAME.matcher(s); if (m.matches()) return m.group(1).strip();
         m = TAGGED_NAME.matcher(s); if (m.matches()) return m.group(1).strip();
+        m = ARROW_MESSAGE_SENDER.matcher(s);
+        if (m.matches()) return m.group(1).strip();
         if (tab == Tab.NEARBY) {
             int end = s.indexOf(':');
             Matcher tagMatcher = GAME_TAG.matcher(s);
