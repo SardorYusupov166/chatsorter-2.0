@@ -574,6 +574,7 @@ public abstract class ChatScreenMixin extends Screen {
             chatsorter$dragging = false;
             chatsorter$resizing = false;
             ChatPosition.save();
+            if (ChatPanelManager.enabled()) ChatPanelManager.save();
             return;
         }
         double x = mc.mouse.getX() * this.width / mc.getWindow().getWidth();
