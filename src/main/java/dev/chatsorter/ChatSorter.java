@@ -28,7 +28,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatSorter implements ClientModInitializer {
-    public static final String VERSION = "2.0.0-alpha.9";
+    public static final String VERSION = "2.0.0-alpha.10";
     private static final int MAX_CHAT_HISTORY = 16_384;
     private static final DateTimeFormatter MESSAGE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     public static int maxChatHistory() { return MAX_CHAT_HISTORY; }
@@ -417,21 +417,25 @@ public class ChatSorter implements ClientModInitializer {
     }
 
     private static final Pattern GAME_TAG_CLASSIFIER = Pattern.compile("\\[\\s*([GLSɢʟꜱ])\\s*\\]", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    // MigosMC's command spy/audit lines have a stable timestamp + Cmd: prefix.
+    // Server announcements and command responses are ordinary messages and must stay in General.
+    private static final Pattern PLAYER_COMMAND_AUDIT = Pattern.compile("^\\[\\d{1,2}:\\d{2}:\\d{2}\\]\\s*Cmd\\s*:", Pattern.CASE_INSENSITIVE);
     private static Tab classify(String original) {
         String s = original.replace('\u00a0', ' ').replace('\u200b', ' ').replace('\u200c', ' ')
             .replace('\u200d', ' ').replaceAll("§[0-9a-fk-orA-FK-OR]", "").strip();
         String lower = s.toLowerCase(Locale.ROOT);
+        if (PLAYER_COMMAND_AUDIT.matcher(s).find()) return Tab.CONSOLE;
         if (!lower.startsWith("[console]") && !lower.startsWith("[консоль]")
                 && (PRIVATE_MESSAGE.matcher(s).matches() || PRIVATE_MESSAGE_OUTSIDE.matcher(s).matches())) return Tab.DM;
         if (lower.matches("^\\s*\\[\\s*объявлени[ея]\\s*\\].*")) return Tab.NEARBY;
-        if (lower.startsWith("[console]") || lower.startsWith("[консоль]")) return Tab.CONSOLE;
         if (lower.startsWith("[spy]") || lower.startsWith("[socialspy]") || lower.startsWith("[commandspy]")) return Tab.SPY;
         Matcher game = GAME_TAG_CLASSIFIER.matcher(s);
         if (game.find() && game.start() < 100) return Tab.NEARBY;
         if (lower.contains("socialspy") || lower.contains("commandspy") || lower.contains("/msg ") || lower.contains("/tell ")) return Tab.SPY;
         if (lower.contains("[игрок]") || lower.contains("[рядом]") || lower.contains("[локальный]")) return Tab.NEARBY;
         if (lower.startsWith("<") || lower.startsWith("[чат]") || lower.startsWith("[chat]")) return Tab.NEARBY;
-        return Tab.CONSOLE;
+        // Unknown server output (announcements, plugin notices, command replies) belongs in General.
+        return Tab.NEARBY;
     }
     public static void toggleFilter(Tab tab) {
         if (tab == Tab.ALL) {
