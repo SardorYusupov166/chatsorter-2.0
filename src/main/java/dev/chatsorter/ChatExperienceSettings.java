@@ -12,6 +12,8 @@ public final class ChatExperienceSettings {
     public static boolean mergeRepeats = true;
     public static boolean restoreHistory = true;
     public static int restoreLimit = 2000;
+    /** Number of most recent records to reprocess and display when chat filters change. */
+    public static int chatDisplayLimit = 500;
     public static boolean customFiltersEnabled = true;
 
     public static void load() {
@@ -21,6 +23,7 @@ public final class ChatExperienceSettings {
             mergeRepeats = Boolean.parseBoolean(p.getProperty("mergeRepeats", "true"));
             restoreHistory = Boolean.parseBoolean(p.getProperty("restoreHistory", "true"));
             restoreLimit = clamp(Integer.parseInt(p.getProperty("restoreLimit", "2000")));
+            chatDisplayLimit = clampDisplayLimit(Integer.parseInt(p.getProperty("chatDisplayLimit", "500")));
             customFiltersEnabled = Boolean.parseBoolean(p.getProperty("customFiltersEnabled", "true"));
         } catch (Exception ignored) { }
     }
@@ -31,10 +34,12 @@ public final class ChatExperienceSettings {
             p.setProperty("mergeRepeats", Boolean.toString(mergeRepeats));
             p.setProperty("restoreHistory", Boolean.toString(restoreHistory));
             p.setProperty("restoreLimit", Integer.toString(clamp(restoreLimit)));
+            p.setProperty("chatDisplayLimit", Integer.toString(clampDisplayLimit(chatDisplayLimit)));
             p.setProperty("customFiltersEnabled", Boolean.toString(customFiltersEnabled));
             try (var out = Files.newOutputStream(FILE)) { p.store(out, "ChatSorter chat experience"); }
         } catch (Exception e) { System.err.println("[ChatSorter] Could not save experience settings: " + e.getMessage()); }
     }
     public static int clamp(int value) { return Math.max(50, Math.min(16_384, value)); }
+    public static int clampDisplayLimit(int value) { return Math.max(100, Math.min(5_000, value)); }
     private ChatExperienceSettings() { }
 }
