@@ -420,11 +420,16 @@ public class ChatSorter implements ClientModInitializer {
     // MigosMC's command spy/audit lines have a stable timestamp + Cmd: prefix.
     // Server announcements and command responses are ordinary messages and must stay in General.
     private static final Pattern PLAYER_COMMAND_AUDIT = Pattern.compile("^\\[\\d{1,2}:\\d{2}:\\d{2}\\]\\s*Cmd\\s*:", Pattern.CASE_INSENSITIVE);
-    private static Tab classify(String original) {
+    static boolean isPlayerCommandAudit(String original) {
+        String s = original.replace('\u00a0', ' ').replace('\u200b', ' ').replace('\u200c', ' ')
+            .replace('\u200d', ' ').replaceAll("§[0-9a-fk-orA-FK-OR]", "").strip();
+        return PLAYER_COMMAND_AUDIT.matcher(s).find();
+    }
+    static Tab classify(String original) {
         String s = original.replace('\u00a0', ' ').replace('\u200b', ' ').replace('\u200c', ' ')
             .replace('\u200d', ' ').replaceAll("§[0-9a-fk-orA-FK-OR]", "").strip();
         String lower = s.toLowerCase(Locale.ROOT);
-        if (PLAYER_COMMAND_AUDIT.matcher(s).find()) return Tab.CONSOLE;
+        if (isPlayerCommandAudit(s)) return Tab.CONSOLE;
         if (!lower.startsWith("[console]") && !lower.startsWith("[консоль]")
                 && (PRIVATE_MESSAGE.matcher(s).matches() || PRIVATE_MESSAGE_OUTSIDE.matcher(s).matches())) return Tab.DM;
         if (lower.matches("^\\s*\\[\\s*объявлени[ея]\\s*\\].*")) return Tab.NEARBY;
