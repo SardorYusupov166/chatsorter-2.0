@@ -63,8 +63,14 @@ public abstract class ChatHudMixin {
     }
 
     @Inject(method = "getWidth()I", at = @At("HEAD"), cancellable = true)
-    private void chatsorter$panelWidth(CallbackInfoReturnable<Integer> cir) {
-        int width = ChatPanelManager.width((ChatHud)(Object)this);
-        if (width >= 0) cir.setReturnValue(width);
+    private void chatsorter$customWidth(CallbackInfoReturnable<Integer> cir) {
+        int panelWidth = ChatPanelManager.width((ChatHud)(Object)this);
+        if (panelWidth >= 0) cir.setReturnValue(panelWidth);
+        else if (ChatPosition.width > 0) cir.setReturnValue(ChatPosition.width);
+    }
+
+    @Inject(method = "getHeight(D)I", at = @At("RETURN"), cancellable = true)
+    private static void chatsorter$customHeight(double vanillaHeight, CallbackInfoReturnable<Integer> cir) {
+        if (ChatPosition.height > 0) cir.setReturnValue(ChatPosition.height);
     }
 }
