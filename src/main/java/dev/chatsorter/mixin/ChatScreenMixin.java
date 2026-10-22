@@ -16,6 +16,7 @@ import net.minecraft.client.gui.Click;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
+import net.minecraft.client.gui.hud.InGameHud;
 import java.util.List;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
@@ -147,13 +148,19 @@ public abstract class ChatScreenMixin extends Screen {
         args.set(2, (Integer)args.get(2) - ChatPosition.y);
     }
 
+    @org.spongepowered.asm.mixin.injection.Redirect(method = "mouseClicked", at = @At(value = "INVOKE",
+        target = "Lnet/minecraft/client/gui/hud/InGameHud;getChatHud()Lnet/minecraft/client/gui/hud/ChatHud;"), require = 0)
+    private ChatHud chatsorter$usePanelHud(InGameHud inGameHud) {
+        return chatsorter$activeClickHud == null ? inGameHud.getChatHud() : chatsorter$activeClickHud;
+    }
+
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void chatsorter$click(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
         double mouseX = click.x();
         double mouseY = click.y();
         MinecraftClient mc = MinecraftClient.getInstance();
-        chatsorter$activeClickHud = ChatPanelManager.enabled()
-            ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : mc.inGameHud.getChatHud();
+        ChatHud panelHud = ChatPanelManager.enabled() ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : null;
+        chatsorter$activeClickHud = panelHud == null ? mc.inGameHud.getChatHud() : panelHud;
         if (click.button() == 0 && ChatPanelManager.click(mouseX, mouseY, this.width, this.height)) {
             cir.setReturnValue(true);
             return;
@@ -536,7 +543,8 @@ public abstract class ChatScreenMixin extends Screen {
     }
     private void chatsorter$scrollToEntry(ChatHistoryEntry target) {
         MinecraftClient mc = MinecraftClient.getInstance();
-        ChatHud hud = mc.inGameHud.getChatHud();
+        ChatHud panelHud = ChatPanelManager.enabled() ? ChatPanelManager.hudContaining(target) : null;
+        ChatHud hud = panelHud == null ? mc.inGameHud.getChatHud() : panelHud;
         ChatHudAccess access = (ChatHudAccess) hud;
         List<ChatHudLine> messages = access.chatsorter$getMessages();
         int targetIndex = -1;
