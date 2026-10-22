@@ -28,7 +28,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatSorter implements ClientModInitializer {
-    public static final String VERSION = "2.0.0-alpha.8";
+    public static final String VERSION = "2.0.0-alpha.9";
     private static final int MAX_CHAT_HISTORY = 16_384;
     private static final DateTimeFormatter MESSAGE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     public static int maxChatHistory() { return MAX_CHAT_HISTORY; }
@@ -84,6 +84,8 @@ public class ChatSorter implements ClientModInitializer {
         return names.isEmpty() ? "NONE" : String.join(",", names);
     }
     public static List<ChatHistoryEntry> entries(Tab tab) { return MESSAGE_STORE.inCategory(tab); }
+    /** Shared, canonical records used by independent chat panels. */
+    public static List<ChatHistoryEntry> entriesForPanels() { return MESSAGE_STORE.all(); }
     /** Rows currently represented in the chat view, in chronological order. */
     public static List<ChatHistoryEntry> visibleEntriesForSelection() {
         return filteredEntriesForCurrentView();
@@ -123,7 +125,10 @@ public class ChatSorter implements ClientModInitializer {
     public record FilterToggle(String key, String label, boolean enabled) { }
     public static List<FilterToggle> filterToggles(int screenWidth) {
         List<FilterToggle> result = new ArrayList<>();
-        for (Tab tab : Tab.values()) result.add(new FilterToggle(tab.name(), tab.title, filterEnabled(tab)));
+        for (Tab tab : Tab.values()) {
+            if (ChatExperienceSettings.standardFilterVisible(tab.name()))
+                result.add(new FilterToggle(tab.name(), tab.title, filterEnabled(tab)));
+        }
         List<String> categories = ChatUserFilters.categories();
         int pageSize = customFilterPageSize(screenWidth);
         customFilterOffset = Math.min(customFilterOffset, Math.max(0, ((categories.size()-1)/pageSize)*pageSize));
@@ -165,6 +170,7 @@ public class ChatSorter implements ClientModInitializer {
                 HUD_ENTRIES.put(display, entry);
                 hud.addMessage(display);
             }
+            ChatPanelManager.refresh();
         } finally { replaying = false; }
     }
 
@@ -221,6 +227,7 @@ public class ChatSorter implements ClientModInitializer {
     public static void openServerHistory(String serverKey) {
         clearMemory();
         activeServerKey = serverKey == null ? "unknown" : serverKey.toLowerCase(Locale.ROOT);
+        ChatPanelManager.loadServer(activeServerKey);
         if (ChatExperienceSettings.restoreHistory) {
             for (ChatHistoryEntry entry : ChatHistoryStorage.load(activeServerKey, ChatExperienceSettings.restoreLimit)) {
                 addToMemory(entry);
@@ -232,7 +239,7 @@ public class ChatSorter implements ClientModInitializer {
 
     public static boolean capture(Text message) { return capture(message, null, null); }
     public static boolean capture(Text message, MessageSignatureData signature, MessageIndicator indicator) {
-        if (replaying) return true;
+        if (replaying || ChatPanelManager.rebuilding()) return true;
         String raw = message.getString();
         boolean internal = raw.startsWith("[ChatSorter]") || raw.startsWith("Автор: ")
             || raw.startsWith("Сервер: ") || raw.startsWith("ChatSorter " + VERSION + " |");
@@ -262,6 +269,7 @@ public class ChatSorter implements ClientModInitializer {
             MESSAGE_STORE.addSource(previous, previous.sourceRecords().get(previous.sourceRecords().size() - 1));
             KeywordAlerts.notifyIfMatched(raw);
             if (visible || isSearching()) refreshChat();
+            else ChatPanelManager.refresh();
             saveHistory(false);
             return false;
         }
@@ -275,6 +283,7 @@ public class ChatSorter implements ClientModInitializer {
         addToMemory(entry);
         lastReceivedEntry = entry;
         HUD_ENTRIES.put(message, entry);
+        ChatPanelManager.append(entry);
         if (!visible) { unread[tab.ordinal()]++; unread[Tab.ALL.ordinal()]++; }
         saveHistory(false);
         if (isSearching()) return raw.toLowerCase(Locale.ROOT).contains(searchQuery);
@@ -325,7 +334,10 @@ public class ChatSorter implements ClientModInitializer {
         refreshChat();
     }
 
-    public static ChatHistoryEntry entryForHudMessage(Text message) { return HUD_ENTRIES.get(message); }
+    public static ChatHistoryEntry entryForHudMessage(Text message) {
+        ChatHistoryEntry entry = HUD_ENTRIES.get(message);
+        return entry != null ? entry : ChatPanelManager.entryForHudMessage(message);
+    }
     public static ChatHistoryEntry findMessage(UUID id) { return MESSAGE_STORE.find(id); }
     public static ChatMessageRecord findSourceMessage(UUID id) { return MESSAGE_STORE.findSource(id); }
     /** Clear the search and show the message in the complete chat timeline. */
