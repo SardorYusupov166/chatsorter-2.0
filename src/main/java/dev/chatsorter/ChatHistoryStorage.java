@@ -51,14 +51,20 @@ public final class ChatHistoryStorage {
                 ChatSorter.Tab tab;
                 try { tab = ChatSorter.Tab.valueOf(o.get("tab").getAsString()); }
                 catch (Exception e) { tab = ChatSorter.Tab.CONSOLE; }
+                boolean migrateOldConsole = tab == ChatSorter.Tab.CONSOLE;
+                if (migrateOldConsole && !ChatSorter.isPlayerCommandAudit(message.getString())) {
+                    tab = ChatSorter.classify(message.getString());
+                }
                 String time = stringValue(o, "time", "");
                 String sender = stringValue(o, "sender", "");
                 int repeats = intValue(o, "repeats", 1);
                 List<ChatMessageRecord> sources = readSourceRecords(o, message, serverKey, tab,
-                    sender);
+                    sender, migrateOldConsole);
+                Set<String> categories = readCategories(o, tab);
+                if (migrateOldConsole) categories = migrateConsoleCategory(categories, tab);
                 ChatHistoryEntry entry = new ChatHistoryEntry(time, tab, sender,
                     "Восстановлено из локальной истории", repeats,
-                    true, sources, readCategories(o, tab), json);
+                    true, sources, categories, json);
                 entry.componentJson = json;
                 loaded.add(entry);
             }
@@ -183,7 +189,7 @@ public final class ChatHistoryStorage {
 
     private static List<ChatMessageRecord> readSourceRecords(JsonObject row, Text fallbackMessage,
                                                               String serverKey, ChatSorter.Tab tab,
-                                                              String sender) {
+                                                              String sender, boolean migrateOldConsole) {
         ArrayList<ChatMessageRecord> result = new ArrayList<>();
         if (row.has("sourceRecords") && row.get("sourceRecords").isJsonArray()) {
             for (JsonElement element : row.getAsJsonArray("sourceRecords")) {
@@ -193,7 +199,10 @@ public final class ChatHistoryStorage {
                 String component = stringValue(source, "component", "");
                 Text message = deserializeText(component);
                 if (message == null) message = Text.literal(raw);
-                Set<String> categories = readCategories(source, tab);
+                ChatSorter.Tab sourceTab = migrateOldConsole && !ChatSorter.isPlayerCommandAudit(raw)
+                    ? ChatSorter.classify(raw) : tab;
+                Set<String> categories = readCategories(source, sourceTab);
+                if (migrateOldConsole) categories = migrateConsoleCategory(categories, sourceTab);
                 String senderName = stringValue(source, "senderName", sender);
                 String senderId = stringValue(source, "senderId", senderName);
                 result.add(new ChatMessageRecord(uuidValue(source, "id"),
@@ -213,7 +222,8 @@ public final class ChatHistoryStorage {
         String senderId = stringValue(row, "senderId", sender);
         result.add(new ChatMessageRecord(id, stringValue(row, "serverId", serverKey),
             stringValue(row, "sessionId", ""), instantValue(row, "receivedAt", Instant.now()),
-            senderId, sender, raw, fallbackMessage, component, readCategories(row, tab),
+            senderId, sender, raw, fallbackMessage, component,
+            migrateOldConsole ? migrateConsoleCategory(readCategories(row, tab), tab) : readCategories(row, tab),
             tab == ChatSorter.Tab.DM ? senderId : "", 1, true));
         return List.copyOf(result);
     }
@@ -227,6 +237,15 @@ public final class ChatHistoryStorage {
         }
         if (categories.isEmpty()) categories.add((fallback == null ? ChatSorter.Tab.CONSOLE : fallback).name());
         return Set.copyOf(categories);
+    }
+
+    private static Set<String> migrateConsoleCategory(Set<String> categories, ChatSorter.Tab destination) {
+        LinkedHashSet<String> migrated = new LinkedHashSet<>(categories);
+        if (destination != ChatSorter.Tab.CONSOLE) {
+            migrated.remove(ChatSorter.Tab.CONSOLE.name());
+            migrated.add(destination.name());
+        }
+        return Set.copyOf(migrated);
     }
 
     private static String stringValue(JsonObject object, String key, String fallback) {
