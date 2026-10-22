@@ -46,6 +46,11 @@ public final class ChatPanelManager {
     public static boolean rebuilding() { return rebuilding; }
     public static boolean isPanelHud(ChatHud hud) { return panelFor(hud) != null; }
     public static ChatHistoryEntry entryForHudMessage(Text text) { return ENTRIES.get(text); }
+    public static ChatHud hudContaining(ChatHistoryEntry entry) {
+        if (entry == null) return null;
+        for (Panel panel : PANELS) if (panel.entries.contains(entry)) return panel.hud;
+        return null;
+    }
     public static Panel panelFor(ChatHud hud) {
         if (hud == null) return null;
         for (Panel panel : PANELS) if (panel.hud == hud) return panel;
