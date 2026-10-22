@@ -6,6 +6,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 public final class ChatExperienceSettings {
     private static final Path FILE = FabricLoader.getInstance().getConfigDir().resolve("chatsorter").resolve("experience.properties");
@@ -15,6 +17,7 @@ public final class ChatExperienceSettings {
     /** Number of most recent records to reprocess and display when chat filters change. */
     public static int chatDisplayLimit = 500;
     public static boolean customFiltersEnabled = true;
+    public static final Set<String> hiddenStandardFilters = new LinkedHashSet<>();
 
     public static void load() {
         if (!Files.isRegularFile(FILE)) return;
@@ -25,6 +28,10 @@ public final class ChatExperienceSettings {
             restoreLimit = clamp(Integer.parseInt(p.getProperty("restoreLimit", "2000")));
             chatDisplayLimit = clampDisplayLimit(Integer.parseInt(p.getProperty("chatDisplayLimit", "500")));
             customFiltersEnabled = Boolean.parseBoolean(p.getProperty("customFiltersEnabled", "true"));
+            hiddenStandardFilters.clear();
+            for (String key : p.getProperty("hiddenStandardFilters", "").split(",")) {
+                if (!key.isBlank()) hiddenStandardFilters.add(key.strip());
+            }
         } catch (Exception ignored) { }
     }
     public static void save() {
@@ -36,10 +43,18 @@ public final class ChatExperienceSettings {
             p.setProperty("restoreLimit", Integer.toString(clamp(restoreLimit)));
             p.setProperty("chatDisplayLimit", Integer.toString(clampDisplayLimit(chatDisplayLimit)));
             p.setProperty("customFiltersEnabled", Boolean.toString(customFiltersEnabled));
+            p.setProperty("hiddenStandardFilters", String.join(",", hiddenStandardFilters));
             try (var out = Files.newOutputStream(FILE)) { p.store(out, "ChatSorter chat experience"); }
         } catch (Exception e) { System.err.println("[ChatSorter] Could not save experience settings: " + e.getMessage()); }
     }
     public static int clamp(int value) { return Math.max(50, Math.min(16_384, value)); }
     public static int clampDisplayLimit(int value) { return Math.max(100, Math.min(5_000, value)); }
+    public static boolean standardFilterVisible(String key) { return !hiddenStandardFilters.contains(key); }
+    public static void setStandardFilterVisible(String key, boolean visible) {
+        if (key == null || key.isBlank()) return;
+        if (visible) hiddenStandardFilters.remove(key); else hiddenStandardFilters.add(key);
+        save();
+    }
+    public static void restoreStandardFilters() { hiddenStandardFilters.clear(); save(); }
     private ChatExperienceSettings() { }
 }
