@@ -172,8 +172,8 @@ public final class ChatPanelManager {
                 ArrayList<ChatHistoryEntry> next = new ArrayList<>(panel.entries);
                 next.add(entry);
                 panel.entries = List.copyOf(next);
+                panel.unread = Math.min(9999, panel.unread + 1);
             }
-            else panel.unread = Math.min(9999, panel.unread + 1);
         }
         } finally { rebuilding = false; }
     }
@@ -225,13 +225,22 @@ public final class ChatPanelManager {
         if (!enabled) return;
         MinecraftClient mc = MinecraftClient.getInstance();
         double scale = mc.options.getChatScale().getValue();
+        int availablePanelWidth = Math.max(56, (int)Math.floor((mc.getWindow().getScaledWidth() - 12) / scale) - PANEL_GAP);
+        int currentPanelWidth = PANELS[0].width + PANELS[1].width;
+        if (currentPanelWidth > availablePanelWidth) {
+            int left = Math.max(28, Math.min(availablePanelWidth - 28,
+                (int)Math.round(availablePanelWidth * (PANELS[0].width / (double)currentPanelWidth))));
+            PANELS[0].width = left;
+            PANELS[1].width = Math.max(28, availablePanelWidth - left);
+        }
         int totalWidth = (int)Math.round((PANELS[0].width + PANELS[1].width + PANEL_GAP) * scale);
-        ChatPosition.x = Math.max(-totalWidth + 60, Math.min(mc.getWindow().getScaledWidth() - totalWidth - 4, ChatPosition.x));
+        ChatPosition.x = Math.max(4, Math.min(mc.getWindow().getScaledWidth() - totalWidth - 4, ChatPosition.x));
         ChatPosition.y = Math.max(-mc.getWindow().getScaledHeight() + 60, Math.min(mc.getWindow().getScaledHeight() - 50, ChatPosition.y));
         for (Panel panel : PANELS) {
             if (panel.hud == null) panel.hud = new ChatHud(mc);
             int x = ChatPosition.x + (panel.index == 0 ? 0 : (int)Math.round((PANELS[0].width + PANEL_GAP) * scale));
             panel.hud.render(context, renderer, currentTick, mouseX - x, mouseY - ChatPosition.y, focused, chatHidden);
+            if (!focused) continue;
             int w = (int)Math.round(panel.width * scale);
             int y = (int)Math.round(headerY(mc.getWindow().getScaledHeight()));
             context.fill(x, y, x + w, y + HEADER_HEIGHT, 0xE622272D);
@@ -244,6 +253,7 @@ public final class ChatPanelManager {
                 panel.unread > 0 ? 0xFFFF7777 : 0xFFD4D9DD);
             if (focused) panel.unread = 0;
         }
+        if (!focused) return;
         int dividerX = ChatPosition.x + (int)Math.round((PANELS[0].width + PANEL_GAP / 2.0) * scale);
         int bottom = mc.getWindow().getScaledHeight() - 40 + ChatPosition.y;
         int top = bottom - (int)Math.round(ChatHud.getHeight(mc.options.getChatHeightFocused().getValue()) * scale) - HEADER_HEIGHT;
@@ -303,10 +313,11 @@ public final class ChatPanelManager {
         double mouseX = mc.mouse.getX() * mc.getWindow().getScaledWidth() / mc.getWindow().getWidth();
         double scale = mc.options.getChatScale().getValue();
         int total = PANELS[0].width + PANELS[1].width;
+        int minPanelWidth = Math.min(MIN_WIDTH, total / 2);
         int left = (int)Math.round((mouseX - ChatPosition.x) / scale - PANEL_GAP / 2.0);
-        left = Math.max(MIN_WIDTH, Math.min(total - MIN_WIDTH, left));
-        PANELS[0].width = clampWidth(left);
-        PANELS[1].width = clampWidth(total - left);
+        left = Math.max(minPanelWidth, Math.min(total - minPanelWidth, left));
+        PANELS[0].width = Math.min(MAX_WIDTH, left);
+        PANELS[1].width = Math.min(MAX_WIDTH, total - left);
         return true;
     }
 
