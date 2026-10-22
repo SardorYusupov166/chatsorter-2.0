@@ -5,6 +5,7 @@ import dev.chatsorter.ChatHistoryEntry;
 import dev.chatsorter.ChatPosition;
 import dev.chatsorter.KeywordAlerts;
 import dev.chatsorter.ChatTheme;
+import dev.chatsorter.ChatPanelManager;
 import dev.chatsorter.ChatSelection;
 import dev.chatsorter.RulesIntegration;
 import net.minecraft.client.gui.DrawContext;
@@ -12,7 +13,6 @@ import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.gui.Click;
-import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
@@ -30,11 +30,11 @@ import java.util.concurrent.CompletableFuture;
 @Mixin(ChatScreen.class)
 public abstract class ChatScreenMixin extends Screen {
     private TextFieldWidget chatsorter$search;
+    private ChatHud chatsorter$activeClickHud;
     private ChatHistoryEntry chatsorter$copyMenuEntry;
     private boolean chatsorter$copyMenuHasJump;
     private int chatsorter$copyMenuX, chatsorter$copyMenuY;
     private static final int COPY_MENU_WIDTH = 190, COPY_MENU_ROW = 18;
-    private boolean chatsorter$historyFocused;
     @Inject(method = "init", at = @At("TAIL"))
     private void chatsorter$initSearch(CallbackInfo ci) {
         int w = Math.min(210, Math.max(100, this.width / 3));
@@ -56,16 +56,27 @@ public abstract class ChatScreenMixin extends Screen {
     @Inject(method = "render", at = @At("TAIL"))
     private void chatsorter$render(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         chatsorter$pollDrag();
+        ChatPanelManager.pollDividerDrag(this.width);
         // Invisible hit areas: drag the message body; resize by grabbing its edges.
         List<ChatSorter.FilterToggle> toggles = ChatSorter.filterToggles(this.width);
-        int builtinCount = ChatSorter.Tab.values().length;
+        List<ChatSorter.FilterToggle> standard = toggles.stream().filter(t -> {
+            try { ChatSorter.Tab.valueOf(t.key()); return true; } catch (IllegalArgumentException ignored) { return false; }
+        }).toList();
+        List<ChatSorter.FilterToggle> custom = toggles.stream().filter(t -> t.key().startsWith("custom:")).toList();
+        ChatSorter.FilterToggle favorite = toggles.stream().filter(t -> t.key().equals("favorites")).findFirst().orElse(null);
+        int builtinCount = standard.size();
+        boolean panelsHovered = mouseX >= 5 && mouseX < 99 && mouseY >= 47 && mouseY < 68;
+        context.fill(5, 47, 99, 68, panelsHovered ? ChatTheme.accent() : 0xCB25282D);
+        context.drawCenteredTextWithShadow(this.textRenderer, ChatPanelManager.enabled() ? "Панели чата: 2" : "Панели чата: 1",
+            52, 53, 0xFFE2E5E8);
+        if (!ChatPanelManager.enabled()) {
         int x = chatsorter$tabX(builtinCount);
         int y = 7;
         int width = chatsorter$tabWidth(builtinCount);
         int h = 17;
-        for (int i = 0; i < Math.min(builtinCount, toggles.size()); i++) {
+        for (int i = 0; i < builtinCount; i++) {
             int left = x + i * width;
-            ChatSorter.FilterToggle toggle = toggles.get(i);
+            ChatSorter.FilterToggle toggle = standard.get(i);
             boolean active = toggle.enabled();
             boolean hovered = mouseX >= left && mouseX < left + width - 2 && mouseY >= y && mouseY < y + h;
             int bg = active ? dev.chatsorter.ChatTheme.accent() : hovered ? 0xDB393E42 : 0xCB25282D;
@@ -83,9 +94,8 @@ public abstract class ChatScreenMixin extends Screen {
                 context.drawTextWithShadow(this.textRenderer, number, bx, y - 6, 0xFFFFFFFF);
             }
         }
-        int customCount = toggles.size() - builtinCount - 1;
-        if (toggles.size() > builtinCount) {
-            ChatSorter.FilterToggle favorite=toggles.get(builtinCount);
+        int customCount = custom.size();
+        if (favorite != null) {
             boolean favHover=mouseX>=5&&mouseX<85&&mouseY>=27&&mouseY<44;
             context.fill(5,27,85,44,favorite.enabled()?ChatTheme.accent():favHover?0xDB393E42:0xCB25282D);
             if(favorite.enabled())context.fill(5,42,85,44,ChatTheme.bright());
@@ -95,7 +105,7 @@ public abstract class ChatScreenMixin extends Screen {
             int cy=27, cw=Math.max(42,Math.min(100,(this.width-160)/customCount));
             int cx=this.width-cw*customCount-4;
             for(int i=0;i<customCount;i++) {
-                ChatSorter.FilterToggle toggle=toggles.get(builtinCount+1+i); int left=cx+i*cw;
+                ChatSorter.FilterToggle toggle=custom.get(i); int left=cx+i*cw;
                 boolean active=toggle.enabled(),hovered=mouseX>=left&&mouseX<left+cw-2&&mouseY>=cy&&mouseY<cy+h;
                 context.fill(left,cy,left+cw-2,cy+h,active?ChatTheme.accent():hovered?0xDB393E42:0xCB25282D);
                 if(active) context.fill(left,cy+h-2,left+cw-2,cy+h,ChatTheme.bright());
@@ -111,6 +121,7 @@ public abstract class ChatScreenMixin extends Screen {
                 context.drawTextWithShadow(this.textRenderer,page,132,31,0xFFD3D5D6);
             }
         }
+        }
         if (RulesIntegration.available()) {
             int left = 5, top = 7, buttonWidth = 82, buttonHeight = 17;
             boolean hovered = mouseX >= left && mouseX < left + buttonWidth && mouseY >= top && mouseY < top + buttonHeight;
@@ -120,6 +131,7 @@ public abstract class ChatScreenMixin extends Screen {
                 hovered ? ChatTheme.text() : 0xFFD3D5D6);
         }
         chatsorter$renderSelection(context, mouseX, mouseY);
+        chatsorter$renderHoveredRow(context, mouseX, mouseY);
         chatsorter$renderSelectedRows(context);
         chatsorter$renderCopyMenu(context, mouseX, mouseY);
     }
@@ -129,7 +141,9 @@ public abstract class ChatScreenMixin extends Screen {
     @org.spongepowered.asm.mixin.injection.ModifyArgs(method = "mouseClicked", at = @At(value = "INVOKE",
         target = "Lnet/minecraft/client/font/DrawnTextConsumer$ClickHandler;<init>(Lnet/minecraft/client/font/TextRenderer;II)V"))
     private void chatsorter$offsetClick(org.spongepowered.asm.mixin.injection.invoke.arg.Args args) {
-        args.set(1, (Integer)args.get(1) - ChatPosition.x);
+        int originX = chatsorter$activeClickHud != null && ChatPanelManager.isPanelHud(chatsorter$activeClickHud)
+            ? ChatPanelManager.offsetX(chatsorter$activeClickHud) : ChatPosition.x;
+        args.set(1, (Integer)args.get(1) - originX);
         args.set(2, (Integer)args.get(2) - ChatPosition.y);
     }
 
@@ -137,6 +151,13 @@ public abstract class ChatScreenMixin extends Screen {
     private void chatsorter$click(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
         double mouseX = click.x();
         double mouseY = click.y();
+        MinecraftClient mc = MinecraftClient.getInstance();
+        chatsorter$activeClickHud = ChatPanelManager.enabled()
+            ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : mc.inGameHud.getChatHud();
+        if (click.button() == 0 && ChatPanelManager.click(mouseX, mouseY, this.width, this.height)) {
+            cir.setReturnValue(true);
+            return;
+        }
         if (click.button() == 0 && !ChatSelection.isEmpty() && chatsorter$selectionToolbarClick(mouseX, mouseY)) {
             cir.setReturnValue(true);
             return;
@@ -171,21 +192,27 @@ public abstract class ChatScreenMixin extends Screen {
             return;
         }
         if (click.button() != 0) return;
+        if (ChatPanelManager.enabled()) return;
         List<ChatSorter.FilterToggle> toggles = ChatSorter.filterToggles(this.width);
-        int builtinCount = ChatSorter.Tab.values().length;
-        if (click.button() == 0 && mouseY >= 27 && mouseY < 44 && mouseX >= 5 && mouseX < 85) {
+        List<ChatSorter.FilterToggle> standard = toggles.stream().filter(t -> {
+            try { ChatSorter.Tab.valueOf(t.key()); return true; } catch (IllegalArgumentException ignored) { return false; }
+        }).toList();
+        List<ChatSorter.FilterToggle> custom = toggles.stream().filter(t -> t.key().startsWith("custom:")).toList();
+        int builtinCount = standard.size();
+        if (click.button() == 0 && mouseY >= 27 && mouseY < 44 && mouseX >= 5 && mouseX < 85
+                && toggles.stream().anyMatch(t -> t.key().equals("favorites"))) {
             ChatSorter.toggleFilterKey("favorites"); cir.setReturnValue(true); return;
         }
         if (click.button() == 0 && mouseY >= 27 && mouseY < 44 && !ChatSorter.customFilterPageLabel(this.width).isEmpty()) {
             if (mouseX >= 90 && mouseX < 107) { ChatSorter.moveCustomFilterPage(-1,this.width); cir.setReturnValue(true); return; }
             if (mouseX >= 110 && mouseX < 127) { ChatSorter.moveCustomFilterPage(1,this.width); cir.setReturnValue(true); return; }
         }
-        if (click.button() == 0 && mouseY >= 27 && mouseY < 44 && toggles.size() > builtinCount+1) {
-            int count=toggles.size()-builtinCount-1,cw=Math.max(42,Math.min(100,(this.width-160)/count));
+        if (click.button() == 0 && mouseY >= 27 && mouseY < 44 && !custom.isEmpty()) {
+            int count=custom.size(),cw=Math.max(42,Math.min(100,(this.width-160)/count));
             int cx=this.width-cw*count-4;
             for(int i=0;i<count;i++) if(mouseX>=cx+i*cw&&mouseX<cx+i*cw+cw-2) {
                 ChatSorter.setSearchQuery(""); if(chatsorter$search!=null) chatsorter$search.setText("");
-                ChatSorter.toggleFilterKey(toggles.get(builtinCount+1+i).key()); cir.setReturnValue(true); return;
+                ChatSorter.toggleFilterKey(custom.get(i).key()); cir.setReturnValue(true); return;
             }
         }
         boolean controlDown = chatsorter$modifierDown(GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_RIGHT_CONTROL);
@@ -194,34 +221,23 @@ public abstract class ChatScreenMixin extends Screen {
             ChatHistoryEntry entry = chatsorter$entryAt(mouseX, mouseY);
             if (entry != null) {
                 ChatSelection.click(entry, controlDown, shiftDown, ChatSorter.visibleEntriesForSelection());
-                chatsorter$historyFocused = true;
                 cir.setReturnValue(true);
                 return;
             }
         }
-        if (chatsorter$insideChat(mouseX, mouseY)) chatsorter$historyFocused = true;
         int x = chatsorter$tabX(builtinCount);
         int y = 7;
         int width = chatsorter$tabWidth(builtinCount);
         if (mouseY < y || mouseY >= y + 17) return;
-        for (int i = 0; i < Math.min(builtinCount,toggles.size()); i++) {
+        for (int i = 0; i < builtinCount; i++) {
             int left = x + i * width;
             if (mouseX >= left && mouseX < left + width - 2) {
                 ChatSorter.setSearchQuery("");
                 if (chatsorter$search != null) chatsorter$search.setText("");
-                ChatSorter.toggleFilterKey(toggles.get(i).key());
+                ChatSorter.toggleFilterKey(standard.get(i).key());
                 cir.setReturnValue(true);
                 return;
             }
-        }
-    }
-
-    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void chatsorter$selectAll(KeyInput input, CallbackInfoReturnable<Boolean> cir) {
-        if (input.isSelectAll() && chatsorter$historyFocused
-                && chatsorter$search != null && !chatsorter$search.isFocused()) {
-            ChatSelection.selectAll(ChatSorter.visibleEntriesForSelection());
-            cir.setReturnValue(true);
         }
     }
 
@@ -231,22 +247,18 @@ public abstract class ChatScreenMixin extends Screen {
             || GLFW.glfwGetKey(window, secondKey) == GLFW.GLFW_PRESS;
     }
 
-    private boolean chatsorter$insideChat(double x, double y) {
-        return x >= chatsorter$leftEdge() && x <= chatsorter$rightEdge()
-            && y >= chatsorter$topEdge() && y <= chatsorter$bottomEdge();
-    }
-
     private ChatHistoryEntry chatsorter$entryAt(double mouseX, double mouseY) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null) return null;
         double scale = mc.options.getChatScale().getValue();
         if (scale <= 0) return null;
-        double chatX = (mouseX - ChatPosition.x) / scale;
+        ChatHud hud = ChatPanelManager.enabled() ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : mc.inGameHud.getChatHud();
+        if (hud == null) return null;
+        double chatX = ChatPanelManager.localX(hud, mouseX);
         double chatY = (this.height - 40 + ChatPosition.y - mouseY) / scale;
         double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0);
         int index = (int)Math.floor(chatY / lineHeight);
-        if (chatX < 0 || chatX > 400 || index < 0 || chatY < 0) return null;
-        ChatHud hud = mc.inGameHud.getChatHud();
+        if (chatX < 0 || (ChatPanelManager.width(hud) >= 0 && chatX > ChatPanelManager.width(hud)) || index < 0 || chatY < 0) return null;
         List<ChatHudLine.Visible> lines = ((ChatHudAccess)hud).chatsorter$getVisibleMessages();
         if (index >= lines.size()) return null;
         int bottom = index;
@@ -351,6 +363,43 @@ public abstract class ChatScreenMixin extends Screen {
         }
     }
 
+    private void chatsorter$renderHoveredRow(DrawContext context, int mouseX, int mouseY) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null) return;
+        ChatHistoryEntry hovered = chatsorter$entryAt(mouseX, mouseY);
+        if (hovered == null) return;
+
+        ChatHud hud = mc.inGameHud.getChatHud();
+        List<ChatHudLine.Visible> lines = ((ChatHudAccess)hud).chatsorter$getVisibleMessages();
+        List<ChatHudLine> messages = ((ChatHudAccess)hud).chatsorter$getMessages();
+        double scale = mc.options.getChatScale().getValue();
+        double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0) * scale;
+        int row = 0, messageIndex = 0;
+        int background = (ChatTheme.accent() & 0x00FFFFFF) | 0x3A000000;
+        int right = Math.max(ChatPosition.x + 1, chatsorter$rightEdge());
+
+        while (row < lines.size()) {
+            int groupStart = row;
+            while (row < lines.size() - 1 && !lines.get(row).endOfEntry()) row++;
+            int groupEnd = row;
+            if (row < lines.size() && lines.get(row).endOfEntry()) messageIndex++;
+            int sourceIndex = messageIndex - 1;
+            if (sourceIndex >= 0 && sourceIndex < messages.size()) {
+                ChatHistoryEntry entry = ChatSorter.entryForHudMessage(messages.get(sourceIndex).content());
+                if (entry != null && entry.id.equals(hovered.id)) {
+                    for (int line = groupStart; line <= groupEnd; line++) {
+                        int bottom = (int)Math.round(this.height - 40 + ChatPosition.y - line * lineHeight);
+                        int top = (int)Math.round(bottom - lineHeight);
+                        context.fill(ChatPosition.x, top, right, bottom, background);
+                        context.fill(ChatPosition.x, top, ChatPosition.x + Math.max(2, (int)Math.ceil(2 * scale)), bottom, ChatTheme.bright());
+                    }
+                    return;
+                }
+            }
+            row = groupEnd + 1;
+        }
+    }
+
     @Inject(method = "mouseClicked", at = @At("RETURN"), cancellable = true)
     private void chatsorter$startDrag(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
         if (cir.getReturnValueZ()) return;
@@ -383,6 +432,13 @@ public abstract class ChatScreenMixin extends Screen {
         }
     }
 
+    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
+    private void chatsorter$scrollPanels(double mouseX, double mouseY, double horizontalAmount, double verticalAmount,
+                                         CallbackInfoReturnable<Boolean> cir) {
+        if (ChatPanelManager.enabled() && ChatPanelManager.scroll(mouseX, mouseY, verticalAmount, this.height))
+            cir.setReturnValue(true);
+    }
+
     private int chatsorter$tabWidth(int count) {
         return Math.max(42, Math.min(100, (this.width - 12) / Math.max(1, count)));
     }
@@ -394,14 +450,15 @@ public abstract class ChatScreenMixin extends Screen {
     private boolean chatsorter$openCopyMenu(double mouseX, double mouseY) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null) return false;
-        ChatHud hud = mc.inGameHud.getChatHud();
+        ChatHud hud = ChatPanelManager.enabled() ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : mc.inGameHud.getChatHud();
+        if (hud == null) return false;
         double scale = mc.options.getChatScale().getValue();
         if (scale <= 0) return false;
-        double chatX = (mouseX - ChatPosition.x) / scale;
+        double chatX = ChatPanelManager.localX(hud, mouseX);
         double chatY = (this.height - 40 + ChatPosition.y - mouseY) / scale;
         double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0);
         int index = (int) Math.floor(chatY / lineHeight);
-        if (chatX < 0 || chatX > 400 || index < 0 || chatY < 0) return false;
+        if (chatX < 0 || (ChatPanelManager.width(hud) >= 0 && chatX > ChatPanelManager.width(hud)) || index < 0 || chatY < 0) return false;
         List<ChatHudLine.Visible> lines = ((ChatHudAccess) hud).chatsorter$getVisibleMessages();
         if (index >= lines.size()) return false;
         int bottom = index;
