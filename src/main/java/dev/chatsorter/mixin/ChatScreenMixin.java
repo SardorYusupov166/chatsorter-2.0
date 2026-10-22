@@ -262,17 +262,22 @@ public abstract class ChatScreenMixin extends Screen {
         ChatHud hud = ChatPanelManager.enabled() ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : mc.inGameHud.getChatHud();
         if (hud == null) return null;
         double chatX = ChatPanelManager.localX(hud, mouseX);
-        double chatY = (this.height - 40 + ChatPosition.y - mouseY) / scale;
+        double chatBottom = this.height - 40 + ChatPosition.y;
         double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0);
+        double chatY = (chatBottom - mouseY) / scale;
         int index = (int)Math.floor(chatY / lineHeight);
-        if (chatX < 0 || (ChatPanelManager.width(hud) >= 0 && chatX > ChatPanelManager.width(hud)) || index < 0 || chatY < 0) return null;
-        List<ChatHudLine.Visible> lines = ((ChatHudAccess)hud).chatsorter$getVisibleMessages();
-        if (index >= lines.size()) return null;
-        int bottom = index;
+        int visibleCount = hud.getVisibleLineCount();
+        if (chatX < 0 || chatX > hud.getWidth() || mouseY > chatBottom
+                || index < 0 || index >= visibleCount) return null;
+        ChatHudAccess access = (ChatHudAccess)hud;
+        List<ChatHudLine.Visible> lines = access.chatsorter$getVisibleMessages();
+        int visibleIndex = index + access.chatsorter$getScrolledLines();
+        if (visibleIndex < 0 || visibleIndex >= lines.size()) return null;
+        int bottom = visibleIndex;
         while (bottom > 0 && !lines.get(bottom).endOfEntry()) bottom--;
         int messageIndex = 0;
         for (int row = 0; row <= bottom; row++) if (lines.get(row).endOfEntry()) messageIndex++;
-        List<ChatHudLine> messages = ((ChatHudAccess)hud).chatsorter$getMessages();
+        List<ChatHudLine> messages = access.chatsorter$getMessages();
         int sourceIndex = messageIndex - 1;
         return sourceIndex < 0 || sourceIndex >= messages.size() ? null
             : ChatSorter.entryForHudMessage(messages.get(sourceIndex).content());
@@ -570,7 +575,6 @@ public abstract class ChatScreenMixin extends Screen {
         if (!chatsorter$dragging && !chatsorter$resizing) return;
         MinecraftClient mc = MinecraftClient.getInstance();
         if (GLFW.glfwGetMouseButton(mc.getWindow().getHandle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) != GLFW.GLFW_PRESS) {
-            if (chatsorter$resizing) mc.options.write();
             chatsorter$dragging = false;
             chatsorter$resizing = false;
             ChatPosition.save();
@@ -584,17 +588,19 @@ public abstract class ChatScreenMixin extends Screen {
             if (scale > 0) {
                 double dx = x - chatsorter$lastX;
                 double dy = y - chatsorter$lastY;
-                double currentWidth = 40 + mc.options.getChatWidth().getValue() * 280;
-                double currentHeight = 20 + mc.options.getChatHeightFocused().getValue() * 160;
+                double currentWidth = ChatPosition.width > 0 ? ChatPosition.width : 40 + mc.options.getChatWidth().getValue() * 280;
+                double currentHeight = ChatPosition.height > 0 ? ChatPosition.height : ChatHud.getHeight(mc.options.getChatHeightFocused().getValue());
                 double dw = chatsorter$resizeRight ? dx : chatsorter$resizeLeft ? -dx : 0;
                 double dh = chatsorter$resizeTop ? -dy : chatsorter$resizeBottom ? dy : 0;
-                double newWidth = Math.max(40, Math.min(320, currentWidth + dw / scale));
-                double newHeight = Math.max(20, Math.min(180, currentHeight + dh / scale));
+                double maxWidth = Math.max(40, (this.width - 8) / scale);
+                double maxHeight = Math.max(20, (this.height - 48) / scale);
+                double newWidth = Math.max(40, Math.min(maxWidth, currentWidth + dw / scale));
+                double newHeight = Math.max(20, Math.min(maxHeight, currentHeight + dh / scale));
                 double actualDw = (newWidth - currentWidth) * scale;
                 double actualDh = (newHeight - currentHeight) * scale;
-                mc.options.getChatWidth().setValue(Math.max(0, Math.min(1, (newWidth - 40) / 280)));
-                mc.options.getChatHeightFocused().setValue(Math.max(0, Math.min(1, (newHeight - 20) / 160)));
-                // The left and bottom edges stay under the pointer when dragged.
+                ChatPosition.width = (int)Math.round(newWidth);
+                ChatPosition.height = (int)Math.round(newHeight);
+                // Keep the opposite edge in place while resizing.
                 if (chatsorter$resizeLeft) ChatPosition.move((int)Math.round(-actualDw), 0, this.width, this.height);
                 if (chatsorter$resizeBottom) ChatPosition.move(0, (int)Math.round(actualDh), this.width, this.height);
             }
@@ -609,13 +615,14 @@ public abstract class ChatScreenMixin extends Screen {
     private int chatsorter$rightEdge() {
         MinecraftClient mc = MinecraftClient.getInstance();
         double scale = mc.options.getChatScale().getValue();
-        return (int) Math.round(ChatPosition.x + (40 + mc.options.getChatWidth().getValue() * 280) * scale);
+        double width = ChatPosition.width > 0 ? ChatPosition.width : 40 + mc.options.getChatWidth().getValue() * 280;
+        return (int) Math.round(ChatPosition.x + width * scale);
     }
     private int chatsorter$topEdge() {
         MinecraftClient mc = MinecraftClient.getInstance();
         double scale = mc.options.getChatScale().getValue();
         return (int) Math.round(this.height - 40 + ChatPosition.y
-            - (20 + mc.options.getChatHeightFocused().getValue() * 160) * scale);
+            - ChatHud.getHeight(mc.options.getChatHeightFocused().getValue()) * scale);
     }
     private int chatsorter$leftEdge() { return ChatPosition.x; }
     private int chatsorter$bottomEdge() { return this.height - 40 + ChatPosition.y; }
