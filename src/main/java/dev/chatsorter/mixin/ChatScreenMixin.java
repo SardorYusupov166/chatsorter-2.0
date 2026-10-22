@@ -267,7 +267,10 @@ public abstract class ChatScreenMixin extends Screen {
         double chatY = (chatBottom - mouseY) / scale;
         int index = (int)Math.floor(chatY / lineHeight);
         int visibleCount = hud.getVisibleLineCount();
-        if (chatX < 0 || chatX > hud.getWidth() || mouseY > chatBottom
+        int chatWidth = ChatPanelManager.width(hud);
+        if (chatWidth < 0) chatWidth = ChatPosition.width > 0
+            ? ChatPosition.width : ChatHud.getWidth(mc.options.getChatWidth().getValue());
+        if (chatX < 0 || chatX > chatWidth || mouseY > chatBottom
                 || index < 0 || index >= visibleCount) return null;
         ChatHudAccess access = (ChatHudAccess)hud;
         List<ChatHudLine.Visible> lines = access.chatsorter$getVisibleMessages();
