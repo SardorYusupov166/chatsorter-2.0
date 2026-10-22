@@ -436,7 +436,6 @@ public class ChatSorter implements ClientModInitializer {
         if (lower.startsWith("[spy]") || lower.startsWith("[socialspy]") || lower.startsWith("[commandspy]")) return Tab.SPY;
         Matcher game = GAME_TAG_CLASSIFIER.matcher(s);
         if (game.find() && game.start() < 100) return Tab.NEARBY;
-        if (lower.contains("socialspy") || lower.contains("commandspy") || lower.contains("/msg ") || lower.contains("/tell ")) return Tab.SPY;
         if (lower.contains("[игрок]") || lower.contains("[рядом]") || lower.contains("[локальный]")) return Tab.NEARBY;
         if (lower.startsWith("<") || lower.startsWith("[чат]") || lower.startsWith("[chat]")) return Tab.NEARBY;
         // Unknown server output (announcements, plugin notices, command replies) belongs in General.
