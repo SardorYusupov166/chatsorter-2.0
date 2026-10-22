@@ -9,6 +9,9 @@ import java.util.Properties;
 public final class ChatPosition {
     public static int x = 0;
     public static int y = 0;
+    /** Custom dimensions in vanilla chat units; -1 keeps the Minecraft default. */
+    public static int width = -1;
+    public static int height = -1;
     private static final Path FILE = MinecraftClient.getInstance().runDirectory.toPath()
         .resolve("config").resolve("chatsorter-position.properties");
     private ChatPosition() {}
@@ -19,7 +22,9 @@ public final class ChatPosition {
             try (var in = Files.newInputStream(FILE)) { props.load(in); }
             x = Integer.parseInt(props.getProperty("x", "0"));
             y = Integer.parseInt(props.getProperty("y", "0"));
-        } catch (Exception ignored) { x = 0; y = 0; }
+            width = Integer.parseInt(props.getProperty("width", "-1"));
+            height = Integer.parseInt(props.getProperty("height", "-1"));
+        } catch (Exception ignored) { x = 0; y = 0; width = -1; height = -1; }
     }
     public static void save() {
         try {
@@ -27,6 +32,8 @@ public final class ChatPosition {
             Properties props = new Properties();
             props.setProperty("x", Integer.toString(x));
             props.setProperty("y", Integer.toString(y));
+            props.setProperty("width", Integer.toString(width));
+            props.setProperty("height", Integer.toString(height));
             try (var stream = Files.newOutputStream(FILE)) { props.store(stream, "ChatSorter chat position"); }
         } catch (Exception ignored) {}
     }
@@ -34,5 +41,5 @@ public final class ChatPosition {
         x = Math.max(-width + 60, Math.min(width - 50, x + dx));
         y = Math.max(-height + 50, Math.min(height - 50, y + dy));
     }
-    public static void reset() { x = 0; y = 0; save(); }
+    public static void reset() { x = 0; y = 0; width = -1; height = -1; save(); }
 }
