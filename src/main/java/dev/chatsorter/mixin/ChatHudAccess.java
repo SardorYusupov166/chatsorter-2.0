@@ -8,4 +8,5 @@ import java.util.List;
 public interface ChatHudAccess {
     @Accessor("visibleMessages") List<ChatHudLine.Visible> chatsorter$getVisibleMessages();
     @Accessor("messages") List<ChatHudLine> chatsorter$getMessages();
+    @Accessor("scrolledLines") int chatsorter$getScrolledLines();
 }
