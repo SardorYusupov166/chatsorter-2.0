@@ -301,7 +301,13 @@ public final class ChatBackgrounds {
                 graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
                 graphics.drawImage(image, 0, 0, width, height, null);
                 graphics.dispose();
-                String id = "custom_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+                String baseName = source.getFileName().toString().replaceFirst("(?i)\\.[^.]+$", "");
+                String slug = baseName.toLowerCase(java.util.Locale.ROOT)
+                    .replaceAll("[^a-z0-9]+", "_").replaceAll("^_+|_+$", "");
+                if (slug.isBlank()) slug = "image";
+                slug = slug.substring(0, Math.min(32, slug.length()));
+                String id = "custom_" + slug + "_"
+                    + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
                 Files.createDirectories(CUSTOM);
                 if (!ImageIO.write(normalized, "png", CUSTOM.resolve(id + ".png").toFile()))
                     throw new IllegalStateException("Не удалось сохранить изображение");
@@ -336,7 +342,8 @@ public final class ChatBackgrounds {
     }
 
     private static String humanize(String id) {
-        String name = id.replaceFirst("^custom_", "").replace('_', ' ');
+        if (id.matches("custom_[0-9a-f]{12}")) return "Мой фон";
+        String name = id.replaceFirst("^custom_", "").replaceFirst("_[a-f0-9]{6}$", "").replace('_', ' ');
         return name.isBlank() ? "Мой фон" : name;
     }
 
