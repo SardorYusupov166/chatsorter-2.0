@@ -5,6 +5,7 @@ import dev.chatsorter.ChatPanelManager;
 import dev.chatsorter.ChatBackgrounds;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.ChatHud;
+import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.client.gui.hud.MessageIndicator;
 import net.minecraft.network.message.MessageSignatureData;
 import net.minecraft.text.Text;
@@ -18,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import java.util.List;
 
 @Mixin(ChatHud.class)
 public abstract class ChatHudMixin {
@@ -70,6 +72,7 @@ public abstract class ChatHudMixin {
     @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("RETURN"))
     private void chatsorter$restore(DrawContext context, TextRenderer textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
         if (chatsorter$matrixPushed) {
+            chatsorter$renderAlertHighlights(context);
             context.getMatrices().popMatrix();
             chatsorter$matrixPushed = false;
         }
@@ -77,6 +80,45 @@ public abstract class ChatHudMixin {
     @Inject(method = "addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V", at = @At("HEAD"), cancellable = true)
     private void chatsorter$sort(Text message, MessageSignatureData signature, MessageIndicator indicator, CallbackInfo ci) {
         if (!ChatSorter.capture(message, signature, indicator)) ci.cancel();
+    }
+
+    private void chatsorter$renderAlertHighlights(DrawContext context) {
+        ChatHud hud = (ChatHud)(Object)this;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null || (ChatPanelManager.enabled() && hud == mc.inGameHud.getChatHud())) return;
+        double scale = mc.options.getChatScale().getValue();
+        if (scale <= 0) return;
+        ChatHudAccess access = (ChatHudAccess)hud;
+        List<ChatHudLine.Visible> lines = access.chatsorter$getVisibleMessages();
+        List<ChatHudLine> messages = access.chatsorter$getMessages();
+        int scroll = access.chatsorter$getScrolledLines();
+        int visibleCount = hud.getVisibleLineCount();
+        int width = hud.getWidth();
+        if (width <= 0) return;
+        int right = (int)Math.ceil(width * scale);
+        double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0) * scale;
+        double bottom = mc.getWindow().getScaledHeight() - 40;
+        int row = 0, messageIndex = 0;
+        while (row < lines.size()) {
+            int groupStart = row;
+            while (row < lines.size() - 1 && !lines.get(row).endOfEntry()) row++;
+            int groupEnd = row;
+            if (row < lines.size() && lines.get(row).endOfEntry()) messageIndex++;
+            int sourceIndex = messageIndex - 1;
+            if (sourceIndex >= 0 && sourceIndex < messages.size()) {
+                ChatHistoryEntry entry = ChatSorter.entryForHudMessage(messages.get(sourceIndex).content());
+                if (entry != null && entry.alertTriggered) {
+                    for (int line = groupStart; line <= groupEnd; line++) {
+                        int screenLine = line - scroll;
+                        if (screenLine < 0 || screenLine >= visibleCount) continue;
+                        int lineBottom = (int)Math.round(bottom - screenLine * lineHeight);
+                        int lineTop = (int)Math.round(lineBottom - lineHeight);
+                        context.fill(0, lineTop, right, lineBottom, KeywordAlerts.highlightColor());
+                    }
+                }
+            }
+            row = groupEnd + 1;
+        }
     }
 
     @Inject(method = "getWidth()I", at = @At("HEAD"), cancellable = true)
