@@ -356,27 +356,41 @@ public abstract class ChatScreenMixin extends Screen {
     private void chatsorter$renderSelectedRows(DrawContext context) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null || ChatSelection.isEmpty()) return;
-        ChatHud hud = mc.inGameHud.getChatHud();
-        List<ChatHudLine.Visible> lines = ((ChatHudAccess)hud).chatsorter$getVisibleMessages();
-        List<ChatHudLine> messages = ((ChatHudAccess)hud).chatsorter$getMessages();
+        List<ChatHud> huds = ChatPanelManager.enabled()
+            ? ChatPanelManager.panelHuds() : List.of(mc.inGameHud.getChatHud());
         double scale = mc.options.getChatScale().getValue();
         double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0) * scale;
-        int row = 0, messageIndex = 0;
-        while (row < lines.size()) {
-            int groupStart = row;
-            while (row < lines.size() - 1 && !lines.get(row).endOfEntry()) row++;
-            int groupEnd = row;
-            if (row < lines.size() && lines.get(row).endOfEntry()) messageIndex++;
-            int sourceIndex = messageIndex - 1;
-            if (sourceIndex >= 0 && sourceIndex < messages.size()
-                    && ChatSelection.contains(ChatSorter.entryForHudMessage(messages.get(sourceIndex).content()))) {
-                for (int line = groupStart; line <= groupEnd; line++) {
-                    int bottom = (int)Math.round(this.height - 40 + ChatPosition.y - line * lineHeight);
-                    int top = (int)Math.round(bottom - lineHeight);
-                    context.fill(ChatPosition.x, top, ChatPosition.x + Math.max(2, (int)Math.ceil(2 * scale)), bottom, 0xD65AA9FF);
+        for (ChatHud hud : huds) {
+            ChatHudAccess access = (ChatHudAccess)hud;
+            List<ChatHudLine.Visible> lines = access.chatsorter$getVisibleMessages();
+            List<ChatHudLine> messages = access.chatsorter$getMessages();
+            int scroll = access.chatsorter$getScrolledLines();
+            int visibleCount = hud.getVisibleLineCount();
+            int offsetX = ChatPanelManager.offsetX(hud);
+            int offsetY = ChatPanelManager.offsetY(hud);
+            int width = ChatPanelManager.width(hud);
+            if (width < 0) width = ChatPosition.width > 0 ? ChatPosition.width
+                : ChatHud.getWidth(mc.options.getChatWidth().getValue());
+            double bottom = this.height - 40 + offsetY;
+            int row = 0, messageIndex = 0;
+            while (row < lines.size()) {
+                int groupStart = row;
+                while (row < lines.size() - 1 && !lines.get(row).endOfEntry()) row++;
+                int groupEnd = row;
+                if (row < lines.size() && lines.get(row).endOfEntry()) messageIndex++;
+                int sourceIndex = messageIndex - 1;
+                if (sourceIndex >= 0 && sourceIndex < messages.size()
+                        && ChatSelection.contains(ChatSorter.entryForHudMessage(messages.get(sourceIndex).content()))) {
+                    for (int line = groupStart; line <= groupEnd; line++) {
+                        int screenLine = line - scroll;
+                        if (screenLine < 0 || screenLine >= visibleCount) continue;
+                        int lineBottom = (int)Math.round(bottom - screenLine * lineHeight);
+                        int lineTop = (int)Math.round(lineBottom - lineHeight);
+                        context.fill(offsetX, lineTop, offsetX + Math.max(2, (int)Math.ceil(2 * scale)), lineBottom, 0xD65AA9FF);
+                    }
                 }
+                row = groupEnd + 1;
             }
-            row = groupEnd + 1;
         }
     }
 
@@ -385,16 +399,25 @@ public abstract class ChatScreenMixin extends Screen {
         if (mc.player == null) return;
         ChatHistoryEntry hovered = chatsorter$entryAt(mouseX, mouseY);
         if (hovered == null) return;
-
-        ChatHud hud = mc.inGameHud.getChatHud();
-        List<ChatHudLine.Visible> lines = ((ChatHudAccess)hud).chatsorter$getVisibleMessages();
-        List<ChatHudLine> messages = ((ChatHudAccess)hud).chatsorter$getMessages();
+        ChatHud hud = ChatPanelManager.enabled()
+            ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : mc.inGameHud.getChatHud();
+        if (hud == null) return;
+        ChatHudAccess access = (ChatHudAccess)hud;
+        List<ChatHudLine.Visible> lines = access.chatsorter$getVisibleMessages();
+        List<ChatHudLine> messages = access.chatsorter$getMessages();
         double scale = mc.options.getChatScale().getValue();
         double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0) * scale;
-        int row = 0, messageIndex = 0;
+        int scroll = access.chatsorter$getScrolledLines();
+        int visibleCount = hud.getVisibleLineCount();
+        int offsetX = ChatPanelManager.offsetX(hud);
+        int offsetY = ChatPanelManager.offsetY(hud);
+        int width = ChatPanelManager.width(hud);
+        if (width < 0) width = ChatPosition.width > 0 ? ChatPosition.width
+            : ChatHud.getWidth(mc.options.getChatWidth().getValue());
+        int right = offsetX + (int)Math.ceil(width * scale);
         int background = (ChatTheme.accent() & 0x00FFFFFF) | 0x3A000000;
-        int right = Math.max(ChatPosition.x + 1, chatsorter$rightEdge());
-
+        double bottom = this.height - 40 + offsetY;
+        int row = 0, messageIndex = 0;
         while (row < lines.size()) {
             int groupStart = row;
             while (row < lines.size() - 1 && !lines.get(row).endOfEntry()) row++;
@@ -405,10 +428,12 @@ public abstract class ChatScreenMixin extends Screen {
                 ChatHistoryEntry entry = ChatSorter.entryForHudMessage(messages.get(sourceIndex).content());
                 if (entry != null && entry.id.equals(hovered.id)) {
                     for (int line = groupStart; line <= groupEnd; line++) {
-                        int bottom = (int)Math.round(this.height - 40 + ChatPosition.y - line * lineHeight);
-                        int top = (int)Math.round(bottom - lineHeight);
-                        context.fill(ChatPosition.x, top, right, bottom, background);
-                        context.fill(ChatPosition.x, top, ChatPosition.x + Math.max(2, (int)Math.ceil(2 * scale)), bottom, ChatTheme.bright());
+                        int screenLine = line - scroll;
+                        if (screenLine < 0 || screenLine >= visibleCount) continue;
+                        int lineBottom = (int)Math.round(bottom - screenLine * lineHeight);
+                        int lineTop = (int)Math.round(lineBottom - lineHeight);
+                        context.fill(offsetX, lineTop, right, lineBottom, background);
+                        context.fill(offsetX, lineTop, offsetX + Math.max(2, (int)Math.ceil(2 * scale)), lineBottom, ChatTheme.bright());
                     }
                     return;
                 }
