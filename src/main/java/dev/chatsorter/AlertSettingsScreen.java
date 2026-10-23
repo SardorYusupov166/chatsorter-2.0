@@ -159,19 +159,19 @@ public final class AlertSettingsScreen extends Screen {
         button(c,"Объединять повторы: " + (ChatExperienceSettings.mergeRepeats ? "Вкл." : "Выкл."),sx,oy+369,sw,22,mx,my);
         button(c,"Восстанавливать историю: " + (ChatExperienceSettings.restoreHistory ? "Вкл." : "Выкл."),sx,oy+396,sw,22,mx,my);
         c.drawTextWithShadow(textRenderer,"Лимит восстановления: " + ChatExperienceSettings.restoreLimit,sx,oy+423,0xFFFFFFFF);
-        c.fill(sx,oy+442,sx+sw,oy+400,0xFF30373B);
-        c.fill(sx,oy+442,sx+(int)Math.round(sw*restoreLimitFraction()),oy+400,ChatTheme.bright());
+        c.fill(sx,oy+442,sx+sw,oy+452,0xFF30373B);
+        c.fill(sx,oy+442,sx+(int)Math.round(sw*restoreLimitFraction()),oy+452,ChatTheme.bright());
         int limitKnobX=sx+(int)Math.round(sw*restoreLimitFraction());
         c.fill(limitKnobX-2,oy+438,limitKnobX+3,oy+456,0xFFFFFFFF);
         c.drawTextWithShadow(textRenderer,"Лимит чата при фильтрации: " + ChatExperienceSettings.chatDisplayLimit,sx,oy+462,0xFFFFFFFF);
-        c.fill(sx,oy+481,sx+sw,oy+543,0xFF30373B);
-        c.fill(sx,oy+481,sx+(int)Math.round(sw*chatDisplayLimitFraction()),oy+543,ChatTheme.bright());
+        c.fill(sx,oy+481,sx+sw,oy+491,0xFF30373B);
+        c.fill(sx,oy+481,sx+(int)Math.round(sw*chatDisplayLimitFraction()),oy+491,ChatTheme.bright());
         int chatLimitKnobX=sx+(int)Math.round(sw*chatDisplayLimitFraction());
         c.fill(chatLimitKnobX-2,oy+477,chatLimitKnobX+3,oy+495,0xFFFFFFFF);
         c.drawTextWithShadow(textRenderer,"Последние сообщения, выводимые при смене фильтра (100–5000).",sx,oy+498,0xFFAAAAAA);
         button(c,"Очистить историю этого сервера",sx,oy+516,sw,22,mx,my);
         button(c,"Пользовательские фильтры Regex",sx,oy+543,sw,22,mx,my);
-        button(c,"Управление стандартными фильтрами",sx,oy+622,sw,22,mx,my);
+        button(c,"Управление стандартными фильтрами",sx,oy+570,sw,22,mx,my);
         if(selected!=null) {
             c.drawTextWithShadow(textRenderer,"Выбранное уведомление",sx,oy+602,ChatTheme.text());
             c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Время: "+selected.time(),sw),sx,oy+622,0xFFFFFFFF);
@@ -358,7 +358,7 @@ public final class AlertSettingsScreen extends Screen {
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+543 && y<oy+565) {
                 client.setScreen(new UserFiltersScreen(this)); return true;
             }
-            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+622 && y<oy+592) {
+            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+570 && y<oy+592) {
                 client.setScreen(new StandardFiltersScreen(this)); return true;
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<=sx+sw && y>=oy+23 && y<oy+38) {
