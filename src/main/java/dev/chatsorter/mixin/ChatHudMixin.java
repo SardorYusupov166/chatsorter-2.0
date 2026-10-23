@@ -74,7 +74,7 @@ public abstract class ChatHudMixin {
     @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("RETURN"))
     private void chatsorter$restore(DrawContext context, TextRenderer textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
         if (chatsorter$matrixPushed) {
-            chatsorter$renderAlertHighlights(context);
+            if (!chatHidden) chatsorter$renderAlertHighlights(context);
             context.getMatrices().popMatrix();
             chatsorter$matrixPushed = false;
         }
