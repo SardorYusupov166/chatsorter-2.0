@@ -51,7 +51,7 @@ public final class ChatWorldRenderer {
         if (chats.isEmpty()) return;
 
         Camera camera = client.gameRenderer.getCamera();
-        Vec3d cameraPos = camera.getPos();
+        Vec3d cameraPos = camera.getCameraPos();
         Vec3d playerPos = player.getLerpedPos(1.0F);
         float yaw = (float)Math.toRadians(player.getYaw());
         double forwardX = -Math.sin(yaw), forwardZ = Math.cos(yaw);
@@ -139,7 +139,7 @@ public final class ChatWorldRenderer {
         for (int line = 0; line < rows; line++) {
             int messageIndex = rows - line - 1;
             ChatHudLine.Visible visibleLine = visible.get(messageIndex);
-            String raw = visibleLine.content().getString();
+            String raw = orderedTextToString(visibleLine.content());
             String message = renderer.trimToWidth(raw, Math.max(1, width - 14));
             float rowY = messagesTop + line * 10;
             submitBackground(queue, renderer, matrices, left + 3, rowY - 1, width - 6,
@@ -166,6 +166,15 @@ public final class ChatWorldRenderer {
         String blank = " ".repeat(count);
         queue.submitText(matrices, x, y, Text.literal(blank).asOrderedText(), false,
             TextRenderer.TextLayerType.SEE_THROUGH, FULL_BRIGHT, 0x00000000, color, 0);
+    }
+
+    private static String orderedTextToString(net.minecraft.text.OrderedText orderedText) {
+        StringBuilder result = new StringBuilder();
+        orderedText.accept((index, style, codePoint) -> {
+            result.appendCodePoint(codePoint);
+            return true;
+        });
+        return result.toString();
     }
 
     private static int withAlpha(int color, int alpha) {
