@@ -308,7 +308,10 @@ public final class ChatPanelManager {
             String close = "×";
             context.fill(x + 3, top + 3, x + 18, top + HEADER_HEIGHT - 2, 0x90383E44);
             context.drawCenteredTextWithShadow(renderer, arrow, x + 10, top + 6, 0xFFE2E5E8);
-            context.drawTextWithShadow(renderer, renderer.trimToWidth(title, Math.max(10, width - 48)), x + 22, top + 6, 0xFFFFFFFF);
+            int nextX = x + width - 38;
+            context.fill(nextX, top + 3, nextX + 15, top + HEADER_HEIGHT - 2, 0x90383E44);
+            context.drawCenteredTextWithShadow(renderer, "›", nextX + 8, top + 6, 0xFFE2E5E8);
+            context.drawTextWithShadow(renderer, renderer.trimToWidth(title, Math.max(10, width - 68)), x + 22, top + 6, 0xFFFFFFFF);
             int closeX = x + width - 19;
             int closeColor = PANELS.size() <= 1 ? 0xFF777B80 : 0xFFFF8D8D;
             context.fill(closeX, top + 3, x + width - 3, top + HEADER_HEIGHT - 2, 0x90383E44);
@@ -349,14 +352,28 @@ public final class ChatPanelManager {
             int top = (int)Math.round(bottom - panel.height * scale);
             int header = headerY(panel, screenHeight);
             int edge = 5;
-            if (mouseX >= x - edge && mouseX <= x + width + edge
-                    && mouseY >= top - edge && mouseY <= bottom + edge) {
+            boolean inHeader = mouseX >= x && mouseX <= x + width
+                && mouseY >= header && mouseY < header + HEADER_HEIGHT;
+            boolean inBody = mouseX >= x - edge && mouseX <= x + width + edge
+                && mouseY >= top - edge && mouseY <= bottom + edge;
+            if (inHeader || inBody) {
                 if (mouseX >= x + width - 22 && mouseY >= header && mouseY < header + HEADER_HEIGHT) {
                     if (PANELS.size() > 1) closeWindow(panel);
                     return true;
                 }
-                if (mouseX >= x + 2 && mouseX < x + 20 && mouseY >= header && mouseY < header + HEADER_HEIGHT) {
+                if (mouseX >= x + 2 && mouseX < x + 20 && inHeader) {
                     cycleFilter(panel, -1, screenWidth);
+                    return true;
+                }
+                if (mouseX >= x + width - 38 && mouseX < x + width - 21 && inHeader) {
+                    cycleFilter(panel, 1, screenWidth);
+                    return true;
+                }
+                if (inHeader) {
+                    dragging = panel;
+                    resizing = false;
+                    lastX = mouseX;
+                    lastY = mouseY;
                     return true;
                 }
                 if (mouseX >= x + width - edge || mouseX < x + edge
@@ -368,10 +385,6 @@ public final class ChatPanelManager {
                     resizeBottom = Math.abs(mouseY - bottom) <= edge;
                     resizing = resizeLeft || resizeRight || resizeTop || resizeBottom;
                     lastX = mouseX; lastY = mouseY;
-                    return true;
-                }
-                if (mouseY >= header && mouseY < header + HEADER_HEIGHT) {
-                    cycleFilter(panel, 1, screenWidth);
                     return true;
                 }
                 return false;
