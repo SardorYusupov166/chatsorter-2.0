@@ -62,6 +62,7 @@ public final class ChatBackgrounds {
     private static volatile boolean initialized;
     private static volatile String selected = "none";
     private static volatile int darkening = 52;
+    private static volatile String importError = "";
 
     private ChatBackgrounds() { }
 
@@ -80,12 +81,14 @@ public final class ChatBackgrounds {
         } catch (Exception e) {
             System.err.println("[ChatSorter] Could not load background settings: " + e.getMessage());
         }
+        if (!"none".equals(selected) && template(selected) == null && customImage(selected) == null) selected = "none";
         if (!"none".equals(selected)) requestTexture(selected, false);
     }
 
     public static List<Template> templates() { return TEMPLATES; }
     public static String selectedId() { return selected; }
     public static int darkening() { return darkening; }
+    public static String importError() { return importError; }
     public static String loadError(String id, boolean thumbnail) { return LOAD_ERRORS.get(textureKey(id, thumbnail)); }
 
     public static void setDarkening(int value) {
@@ -197,9 +200,10 @@ public final class ChatBackgrounds {
             long length = connection.getContentLengthLong();
             if (length > MAX_DOWNLOAD_BYTES) throw new IllegalArgumentException("Фон превышает лимит 8 МБ");
             Files.createDirectories(destination.getParent());
-            try (InputStream in = connection.getInputStream()) {
-                long copied = 0;
-                try (var out = Files.newOutputStream(destination)) {
+            Path temporary = Files.createTempFile(destination.getParent(), "background-", ".part");
+            try {
+                try (InputStream in = connection.getInputStream(); var out = Files.newOutputStream(temporary)) {
+                    long copied = 0;
                     byte[] buffer = new byte[8192];
                     int count;
                     while ((count = in.read(buffer)) != -1) {
@@ -208,6 +212,14 @@ public final class ChatBackgrounds {
                         out.write(buffer, 0, count);
                     }
                 }
+                try {
+                    Files.move(temporary, destination, java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                        java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+                } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
+                    Files.move(temporary, destination, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+            } finally {
+                Files.deleteIfExists(temporary);
             }
         } finally {
             connection.disconnect();
@@ -272,7 +284,7 @@ public final class ChatBackgrounds {
             try {
                 FileDialog dialog = new FileDialog((Frame)null, "Выберите фон чата", FileDialog.LOAD);
                 dialog.setFilenameFilter((dir, name) -> name.toLowerCase(java.util.Locale.ROOT)
-                    .matches(".*\\.(png|jpe?g|webp|bmp)$"));
+                    .matches(".*\\.(png|jpe?g|bmp)$"));
                 dialog.setVisible(true);
                 String filename = dialog.getFile();
                 if (filename == null) return;
@@ -291,13 +303,17 @@ public final class ChatBackgrounds {
                 graphics.dispose();
                 String id = "custom_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
                 Files.createDirectories(CUSTOM);
-                ImageIO.write(normalized, "png", CUSTOM.resolve(id + ".png").toFile());
+                if (!ImageIO.write(normalized, "png", CUSTOM.resolve(id + ".png").toFile()))
+                    throw new IllegalStateException("Не удалось сохранить изображение");
                 client.execute(() -> {
+                    importError = "";
                     LOAD_ERRORS.remove(id + ":thumb");
                     select(id);
                 });
             } catch (Exception e) {
-                System.err.println("[ChatSorter] Could not import chat background: " + e.getMessage());
+                String message = e.getMessage() == null ? "Не удалось импортировать изображение" : e.getMessage();
+                client.execute(() -> importError = message);
+                System.err.println("[ChatSorter] Could not import chat background: " + message);
             }
         }, "ChatSorter background picker");
         chooser.setDaemon(true);
