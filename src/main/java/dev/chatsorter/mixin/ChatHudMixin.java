@@ -1,6 +1,8 @@
 package dev.chatsorter.mixin;
 
 import dev.chatsorter.ChatSorter;
+import dev.chatsorter.ChatHistoryEntry;
+import dev.chatsorter.KeywordAlerts;
 import dev.chatsorter.ChatPanelManager;
 import dev.chatsorter.ChatBackgrounds;
 import net.minecraft.client.MinecraftClient;
@@ -93,7 +95,9 @@ public abstract class ChatHudMixin {
         List<ChatHudLine> messages = access.chatsorter$getMessages();
         int scroll = access.chatsorter$getScrolledLines();
         int visibleCount = hud.getVisibleLineCount();
-        int width = hud.getWidth();
+        int width = ChatPanelManager.width(hud);
+        if (width < 0) width = ChatPosition.width > 0
+            ? ChatPosition.width : ChatHud.getWidth(mc.options.getChatWidth().getValue());
         if (width <= 0) return;
         int right = (int)Math.ceil(width * scale);
         double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0) * scale;
