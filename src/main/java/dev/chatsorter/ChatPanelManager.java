@@ -419,16 +419,21 @@ public final class ChatPanelManager {
         double y = mc.mouse.getY() * mc.getWindow().getScaledHeight() / mc.getWindow().getHeight();
         double dx = x - lastX, dy = y - lastY;
         if (resizing) {
-            double newWidth = dragging.width;
-            double newHeight = dragging.height;
-            if (resizeRight) newWidth += dx / mc.options.getChatScale().getValue();
-            if (resizeLeft) newWidth -= dx / mc.options.getChatScale().getValue();
-            if (resizeBottom) newHeight += dy / mc.options.getChatScale().getValue();
-            if (resizeTop) newHeight -= dy / mc.options.getChatScale().getValue();
-            dragging.width = clamp((int)Math.round(newWidth), MIN_WIDTH, Math.max(MIN_WIDTH, (screenWidth - 8) / Math.max(.01, mc.options.getChatScale().getValue())));
-            dragging.height = clamp((int)Math.round(newHeight), MIN_HEIGHT, Math.max(MIN_HEIGHT, (screenHeight - 48) / Math.max(.01, mc.options.getChatScale().getValue())));
-            if (resizeLeft) dragging.x += (int)Math.round((newWidth - dragging.width) * mc.options.getChatScale().getValue());
-            if (resizeTop) dragging.y -= (int)Math.round((newHeight - dragging.height) * mc.options.getChatScale().getValue());
+            double scale = Math.max(.01, mc.options.getChatScale().getValue());
+            int oldWidth = dragging.width;
+            int oldHeight = dragging.height;
+            double newWidth = oldWidth;
+            double newHeight = oldHeight;
+            if (resizeRight) newWidth += dx / scale;
+            if (resizeLeft) newWidth -= dx / scale;
+            if (resizeBottom) newHeight += dy / scale;
+            if (resizeTop) newHeight -= dy / scale;
+            dragging.width = clamp((int)Math.round(newWidth), MIN_WIDTH,
+                Math.max(MIN_WIDTH, (int)Math.floor((screenWidth - 8) / scale)));
+            dragging.height = clamp((int)Math.round(newHeight), MIN_HEIGHT,
+                Math.max(MIN_HEIGHT, (int)Math.floor((screenHeight - 48) / scale)));
+            if (resizeLeft) dragging.x -= (int)Math.round((dragging.width - oldWidth) * scale);
+            if (resizeTop) dragging.y += (int)Math.round((dragging.height - oldHeight) * scale);
         } else {
             dragging.x += (int)Math.round(dx);
             dragging.y += (int)Math.round(dy);
