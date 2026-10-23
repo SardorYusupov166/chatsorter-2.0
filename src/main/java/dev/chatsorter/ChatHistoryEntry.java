@@ -26,6 +26,7 @@ public final class ChatHistoryEntry {
     public String componentJson = "";
     public int repeats;
     public boolean restored;
+    public boolean alertTriggered;
     public boolean bookmarkFallback;
 
     private final ArrayList<ChatMessageRecord> sourceRecords = new ArrayList<>();
