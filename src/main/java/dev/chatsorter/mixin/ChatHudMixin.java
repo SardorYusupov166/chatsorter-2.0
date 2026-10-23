@@ -48,7 +48,7 @@ public abstract class ChatHudMixin {
         }
         context.getMatrices().pushMatrix();
         chatsorter$matrixPushed = true;
-        context.getMatrices().translate(ChatPanelManager.isPanelHud(hud) ? ChatPanelManager.offsetX(hud) : ChatPosition.x, ChatPosition.y);
+        context.getMatrices().translate(ChatPanelManager.offsetX(hud), ChatPanelManager.offsetY(hud));
     }
     @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("RETURN"))
     private void chatsorter$restore(DrawContext context, TextRenderer textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
@@ -67,6 +67,12 @@ public abstract class ChatHudMixin {
         int panelWidth = ChatPanelManager.width((ChatHud)(Object)this);
         if (panelWidth >= 0) cir.setReturnValue(panelWidth);
         else if (ChatPosition.width > 0) cir.setReturnValue(ChatPosition.width);
+    }
+
+    @Inject(method = "getVisibleLineCount()I", at = @At("HEAD"), cancellable = true)
+    private void chatsorter$panelVisibleLineCount(CallbackInfoReturnable<Integer> cir) {
+        int panelCount = ChatPanelManager.visibleLineCount((ChatHud)(Object)this);
+        if (panelCount >= 0) cir.setReturnValue(panelCount);
     }
 
     @Inject(method = "getHeight(D)I", at = @At("RETURN"), cancellable = true)
