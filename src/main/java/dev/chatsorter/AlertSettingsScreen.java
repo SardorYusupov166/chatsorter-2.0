@@ -35,7 +35,7 @@ public final class AlertSettingsScreen extends Screen {
     private int historyBottom() { return height - 38; }
     private int settingsTop() { return 101; }
     private int settingsBottom() { return historyBottom() - 5; }
-    private int settingsContentHeight() { return selected == null ? 565 : 800; }
+    private int settingsContentHeight() { return selected == null ? 617 : 852; }
     private int maxSettingsScroll() { return Math.max(0, settingsContentHeight() - Math.max(1, settingsBottom() - settingsTop())); }
     private int wordRows() { return Math.max(1, (listBottom() - listTop()) / 22); }
     private int historyRows() { return Math.max(1, (historyBottom() - historyTop() - 19) / 24); }
@@ -141,35 +141,47 @@ public final class AlertSettingsScreen extends Screen {
         c.drawTextWithShadow(textRenderer,"Отдельная громкость, независимо от Minecraft",sx,oy+164,0xFFAAAAAA);
         c.drawTextWithShadow(textRenderer,"Свои сообщения игнорируются",sx,oy+180,0xFFAAAAAA);
         button(c,"Тема: " + ChatTheme.name(),sx,oy+205,Math.min(sw,190),23,mx,my);
-        c.drawTextWithShadow(textRenderer,"Клавиша уведомлений: " + AlertHotkey.keyName(),sx,oy+245,0xFFFFFFFF);
-        button(c,"Сменить клавишу",sx,oy+263,Math.min(sw,160),22,mx,my);
-        c.drawTextWithShadow(textRenderer,"Настройки чата",sx,oy+299,ChatTheme.text());
-        button(c,"Объединять повторы: " + (ChatExperienceSettings.mergeRepeats ? "Вкл." : "Выкл."),sx,oy+317,sw,22,mx,my);
-        button(c,"Восстанавливать историю: " + (ChatExperienceSettings.restoreHistory ? "Вкл." : "Выкл."),sx,oy+344,sw,22,mx,my);
-        c.drawTextWithShadow(textRenderer,"Лимит восстановления: " + ChatExperienceSettings.restoreLimit,sx,oy+371,0xFFFFFFFF);
-        c.fill(sx,oy+390,sx+sw,oy+400,0xFF30373B);
-        c.fill(sx,oy+390,sx+(int)Math.round(sw*restoreLimitFraction()),oy+400,ChatTheme.bright());
+        c.drawTextWithShadow(textRenderer,"Цвет подсветки строки уведомления",sx,oy+232,0xFFFFFFFF);
+        int alertColorSize=18, alertColorGap=5, alertColorStep=alertColorSize+alertColorGap;
+        int alertColorCount=KeywordAlerts.highlightColorCount();
+        int alertColorColumns=Math.max(1,Math.min(alertColorCount,(sw+alertColorGap)/alertColorStep));
+        for(int color=0;color<alertColorCount;color++) {
+            int cx=sx+(color%alertColorColumns)*alertColorStep;
+            int cy=oy+250+(color/alertColorColumns)*alertColorStep;
+            c.fill(cx-2,cy-2,cx+alertColorSize+2,cy+alertColorSize+2,
+                color==KeywordAlerts.highlightColorIndex()?0xFFFFFFFF:0xFF343A41);
+            c.fill(cx,cy,cx+alertColorSize,cy+alertColorSize,
+                0xFF000000 | (KeywordAlerts.highlightColorAt(color)&0x00FFFFFF));
+        }
+        c.drawTextWithShadow(textRenderer,"Клавиша уведомлений: " + AlertHotkey.keyName(),sx,oy+297,0xFFFFFFFF);
+        button(c,"Сменить клавишу",sx,oy+315,Math.min(sw,160),22,mx,my);
+        c.drawTextWithShadow(textRenderer,"Настройки чата",sx,oy+351,ChatTheme.text());
+        button(c,"Объединять повторы: " + (ChatExperienceSettings.mergeRepeats ? "Вкл." : "Выкл."),sx,oy+369,sw,22,mx,my);
+        button(c,"Восстанавливать историю: " + (ChatExperienceSettings.restoreHistory ? "Вкл." : "Выкл."),sx,oy+396,sw,22,mx,my);
+        c.drawTextWithShadow(textRenderer,"Лимит восстановления: " + ChatExperienceSettings.restoreLimit,sx,oy+423,0xFFFFFFFF);
+        c.fill(sx,oy+442,sx+sw,oy+400,0xFF30373B);
+        c.fill(sx,oy+442,sx+(int)Math.round(sw*restoreLimitFraction()),oy+400,ChatTheme.bright());
         int limitKnobX=sx+(int)Math.round(sw*restoreLimitFraction());
-        c.fill(limitKnobX-2,oy+386,limitKnobX+3,oy+404,0xFFFFFFFF);
-        c.drawTextWithShadow(textRenderer,"Лимит чата при фильтрации: " + ChatExperienceSettings.chatDisplayLimit,sx,oy+410,0xFFFFFFFF);
-        c.fill(sx,oy+429,sx+sw,oy+439,0xFF30373B);
-        c.fill(sx,oy+429,sx+(int)Math.round(sw*chatDisplayLimitFraction()),oy+439,ChatTheme.bright());
+        c.fill(limitKnobX-2,oy+438,limitKnobX+3,oy+456,0xFFFFFFFF);
+        c.drawTextWithShadow(textRenderer,"Лимит чата при фильтрации: " + ChatExperienceSettings.chatDisplayLimit,sx,oy+462,0xFFFFFFFF);
+        c.fill(sx,oy+481,sx+sw,oy+543,0xFF30373B);
+        c.fill(sx,oy+481,sx+(int)Math.round(sw*chatDisplayLimitFraction()),oy+543,ChatTheme.bright());
         int chatLimitKnobX=sx+(int)Math.round(sw*chatDisplayLimitFraction());
-        c.fill(chatLimitKnobX-2,oy+425,chatLimitKnobX+3,oy+443,0xFFFFFFFF);
-        c.drawTextWithShadow(textRenderer,"Последние сообщения, выводимые при смене фильтра (100–5000).",sx,oy+446,0xFFAAAAAA);
-        button(c,"Очистить историю этого сервера",sx,oy+464,sw,22,mx,my);
-        button(c,"Пользовательские фильтры Regex",sx,oy+491,sw,22,mx,my);
-        button(c,"Управление стандартными фильтрами",sx,oy+518,sw,22,mx,my);
+        c.fill(chatLimitKnobX-2,oy+477,chatLimitKnobX+3,oy+495,0xFFFFFFFF);
+        c.drawTextWithShadow(textRenderer,"Последние сообщения, выводимые при смене фильтра (100–5000).",sx,oy+498,0xFFAAAAAA);
+        button(c,"Очистить историю этого сервера",sx,oy+516,sw,22,mx,my);
+        button(c,"Пользовательские фильтры Regex",sx,oy+543,sw,22,mx,my);
+        button(c,"Управление стандартными фильтрами",sx,oy+622,sw,22,mx,my);
         if(selected!=null) {
-            c.drawTextWithShadow(textRenderer,"Выбранное уведомление",sx,oy+550,ChatTheme.text());
-            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Время: "+selected.time(),sw),sx,oy+570,0xFFFFFFFF);
-            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Слово: "+selected.keyword(),sw),sx,oy+586,0xFFFFFFFF);
-            c.drawTextWithShadow(textRenderer,"Полное сообщение:",sx,oy+606,0xFFFFFFFF);
+            c.drawTextWithShadow(textRenderer,"Выбранное уведомление",sx,oy+602,ChatTheme.text());
+            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Время: "+selected.time(),sw),sx,oy+622,0xFFFFFFFF);
+            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Слово: "+selected.keyword(),sw),sx,oy+638,0xFFFFFFFF);
+            c.drawTextWithShadow(textRenderer,"Полное сообщение:",sx,oy+658,0xFFFFFFFF);
             String msg=selected.message();
             int maxChars=Math.max(8,sw/6);
             for(int i=0;i<Math.min(12,(msg.length()+maxChars-1)/maxChars);i++) {
                 int start=i*maxChars;
-                c.drawTextWithShadow(textRenderer,msg.substring(start,Math.min(msg.length(),start+maxChars)),sx,oy+623+i*12,0xFFE2E5E2);
+                c.drawTextWithShadow(textRenderer,msg.substring(start,Math.min(msg.length(),start+maxChars)),sx,oy+675+i*12,0xFFE2E5E2);
             }
         }
         c.disableScissor();
@@ -312,30 +324,41 @@ public final class AlertSettingsScreen extends Screen {
                 return true;
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+Math.min(sw,190) && y>=oy+205 && y<oy+228) { ChatTheme.next(); return true; }
-            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+Math.min(sw,160) && y>=oy+263 && y<oy+285) { client.setScreen(new HotkeySetupScreen(this)); return true; }
-            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+317 && y<oy+339) {
+            int alertColorSize=18, alertColorGap=5, alertColorStep=alertColorSize+alertColorGap;
+            int alertColorCount=KeywordAlerts.highlightColorCount();
+            int alertColorColumns=Math.max(1,Math.min(alertColorCount,(sw+alertColorGap)/alertColorStep));
+            for(int color=0;color<alertColorCount;color++) {
+                int cx=sx+(color%alertColorColumns)*alertColorStep;
+                int cy=oy+250+(color/alertColorColumns)*alertColorStep;
+                if(x>=cx && x<cx+alertColorSize && y>=cy && y<cy+alertColorSize) {
+                    KeywordAlerts.setHighlightColorIndex(color);
+                    return true;
+                }
+            }
+            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+Math.min(sw,160) && y>=oy+315 && y<oy+337) { client.setScreen(new HotkeySetupScreen(this)); return true; }
+            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+369 && y<oy+391) {
                 ChatExperienceSettings.mergeRepeats=!ChatExperienceSettings.mergeRepeats; ChatExperienceSettings.save(); return true;
             }
-            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+344 && y<oy+366) {
+            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+396 && y<oy+418) {
                 ChatExperienceSettings.restoreHistory=!ChatExperienceSettings.restoreHistory; ChatExperienceSettings.save(); return true;
             }
-            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<=sx+sw && y>=oy+386 && y<oy+405) {
+            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<=sx+sw && y>=oy+438 && y<oy+457) {
                 draggingRestoreLimit=true;
                 setRestoreLimitAt(x);
                 return true;
             }
-            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+464 && y<oy+486) {
+            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+516 && y<oy+538) {
                 ChatSorter.clearCurrentServerHistory(); return true;
             }
-            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<=sx+sw && y>=oy+425 && y<oy+444) {
+            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<=sx+sw && y>=oy+477 && y<oy+496) {
                 draggingChatDisplayLimit=true;
                 setChatDisplayLimitAt(x);
                 return true;
             }
-            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+491 && y<oy+513) {
+            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+543 && y<oy+565) {
                 client.setScreen(new UserFiltersScreen(this)); return true;
             }
-            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+518 && y<oy+540) {
+            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+622 && y<oy+592) {
                 client.setScreen(new StandardFiltersScreen(this)); return true;
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<=sx+sw && y>=oy+23 && y<oy+38) {
