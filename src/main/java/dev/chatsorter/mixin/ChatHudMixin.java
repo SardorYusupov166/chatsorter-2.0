@@ -47,6 +47,11 @@ public abstract class ChatHudMixin {
     @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("HEAD"), cancellable = true)
     private void chatsorter$translate(DrawContext context, TextRenderer textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
         ChatHud hud = (ChatHud)(Object)this;
+        if (dev.chatsorter.ChatWorldRenderer.shouldHideScreenChat(hud)) {
+            chatsorter$matrixPushed = false;
+            ci.cancel();
+            return;
+        }
         context.getMatrices().pushMatrix();
         chatsorter$matrixPushed = true;
         context.getMatrices().translate(ChatPanelManager.offsetX(hud), ChatPanelManager.offsetY(hud));

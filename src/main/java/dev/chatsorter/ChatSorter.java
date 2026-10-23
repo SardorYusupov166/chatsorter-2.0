@@ -194,6 +194,7 @@ public class ChatSorter implements ClientModInitializer {
         ChatTheme.load();
         ChatBackgrounds.load();
         ChatExperienceSettings.load();
+        ChatWorldRenderer.register();
         ChatUserFilters.load();
         AlertHotkey.load();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
