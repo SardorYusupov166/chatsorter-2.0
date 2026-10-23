@@ -500,10 +500,13 @@ public abstract class ChatScreenMixin extends Screen {
         double chatY = (this.height - 40 + ChatPanelManager.offsetY(hud) - mouseY) / scale;
         double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0);
         int index = (int) Math.floor(chatY / lineHeight);
-        if (chatX < 0 || (ChatPanelManager.width(hud) >= 0 && chatX > ChatPanelManager.width(hud)) || index < 0 || chatY < 0) return false;
-        List<ChatHudLine.Visible> lines = ((ChatHudAccess) hud).chatsorter$getVisibleMessages();
-        if (index >= lines.size()) return false;
-        int bottom = index;
+        if (chatX < 0 || (ChatPanelManager.width(hud) >= 0 && chatX > ChatPanelManager.width(hud))
+                || index < 0 || index >= hud.getVisibleLineCount() || chatY < 0) return false;
+        ChatHudAccess access = (ChatHudAccess)hud;
+        List<ChatHudLine.Visible> lines = access.chatsorter$getVisibleMessages();
+        int visibleIndex = index + access.chatsorter$getScrolledLines();
+        if (visibleIndex < 0 || visibleIndex >= lines.size()) return false;
+        int bottom = visibleIndex;
         while (bottom > 0 && !lines.get(bottom).endOfEntry()) bottom--;
         int messageIndex = 0;
         for (int row = 0; row <= bottom; row++) if (lines.get(row).endOfEntry()) messageIndex++;
