@@ -49,6 +49,22 @@ public abstract class ChatHudMixin {
         context.getMatrices().pushMatrix();
         chatsorter$matrixPushed = true;
         context.getMatrices().translate(ChatPanelManager.offsetX(hud), ChatPanelManager.offsetY(hud));
+        if (!chatHidden) {
+            MinecraftClient mc = MinecraftClient.getInstance();
+            int width = ChatPanelManager.width(hud);
+            if (width < 0) width = ChatPosition.width > 0
+                ? ChatPosition.width : ChatHud.getWidth(mc.options.getChatWidth().getValue());
+            int height = ChatPanelManager.height(hud);
+            if (height < 0) height = ChatPosition.height > 0
+                ? ChatPosition.height : ChatHud.getHeight(focused
+                    ? mc.options.getChatHeightFocused().getValue()
+                    : mc.options.getChatHeightUnfocused().getValue());
+            double scale = mc.options.getChatScale().getValue();
+            int scaledWidth = (int)Math.round(width * scale);
+            int scaledHeight = (int)Math.round(height * scale);
+            int top = mc.getWindow().getScaledHeight() - 40 - scaledHeight;
+            ChatBackgrounds.renderBackground(context, 0, top, scaledWidth, scaledHeight);
+        }
     }
     @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("RETURN"))
     private void chatsorter$restore(DrawContext context, TextRenderer textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
