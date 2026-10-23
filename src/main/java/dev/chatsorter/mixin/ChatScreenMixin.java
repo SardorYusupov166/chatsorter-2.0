@@ -125,6 +125,14 @@ public abstract class ChatScreenMixin extends Screen {
             }
         }
         }
+        int backgroundButtonX = RulesIntegration.available() ? 90 : 5;
+        boolean backgroundHovered = mouseX >= backgroundButtonX && mouseX < backgroundButtonX + 82
+            && mouseY >= 7 && mouseY < 24;
+        context.fill(backgroundButtonX, 7, backgroundButtonX + 82, 24,
+            backgroundHovered ? ChatTheme.accent() : 0xCB25282D);
+        context.fill(backgroundButtonX, 22, backgroundButtonX + 82, 24, ChatTheme.bright());
+        context.drawCenteredTextWithShadow(this.textRenderer, "Фон чата", backgroundButtonX + 41, 11,
+            backgroundHovered ? ChatTheme.text() : 0xFFD3D5D6);
         if (RulesIntegration.available()) {
             int left = 5, top = 7, buttonWidth = 82, buttonHeight = 17;
             boolean hovered = mouseX >= left && mouseX < left + buttonWidth && mouseY >= top && mouseY < top + buttonHeight;
@@ -189,6 +197,13 @@ public abstract class ChatScreenMixin extends Screen {
                 cir.setReturnValue(true);
                 return;
             }
+        }
+        int backgroundButtonX = RulesIntegration.available() ? 90 : 5;
+        if (click.button() == 0 && click.x() >= backgroundButtonX && click.x() < backgroundButtonX + 82
+                && click.y() >= 7 && click.y() < 24) {
+            mc.setScreen(new dev.chatsorter.ChatBackgroundSettingsScreen((Screen)(Object)this));
+            cir.setReturnValue(true);
+            return;
         }
         if (click.button() == 0 && RulesIntegration.available()
                 && click.x() >= 5 && click.x() < 87 && click.y() >= 7 && click.y() < 24) {
