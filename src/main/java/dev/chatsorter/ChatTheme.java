@@ -37,6 +37,9 @@ public final class ChatTheme {
     public static int accent() { return ACCENTS[index]; }
     public static int bright() { return BRIGHTS[index]; }
     public static int text() { return BRIGHTS[index]; }
+    public static int accent(int palette) { return ACCENTS[Math.floorMod(palette, ACCENTS.length)]; }
+    public static int bright(int palette) { return BRIGHTS[Math.floorMod(palette, BRIGHTS.length)]; }
+    public static int text(int palette) { return bright(palette); }
     public static String name() { return NAMES[index]; }
     public static int index() { return index; }
     public static int paletteCount() { return NAMES.length; }

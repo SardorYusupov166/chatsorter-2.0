@@ -138,6 +138,20 @@ public class ChatSorter implements ClientModInitializer {
                 ChatExperienceSettings.customFiltersEnabled && ChatUserFilters.categoryEnabled(category)));
         return result;
     }
+    /** Full filter list for independent window pickers; its checkboxes are local to each window. */
+    public static List<FilterToggle> panelFilterToggles() {
+        List<FilterToggle> result = new ArrayList<>();
+        result.add(new FilterToggle(Tab.ALL.name(), Tab.ALL.title, false));
+        for (Tab tab : Tab.values()) {
+            if (tab == Tab.ALL) continue;
+            if (ChatExperienceSettings.standardFilterVisible(tab.name()))
+                result.add(new FilterToggle(tab.name(), tab.title, false));
+        }
+        result.add(new FilterToggle("favorites", "Избранное", false));
+        for (String category : ChatUserFilters.categories())
+            result.add(new FilterToggle("custom:" + category, category, false));
+        return result;
+    }
     public static int customFilterPageSize(int screenWidth) { return Math.max(1, Math.min(12, (screenWidth - 160) / 70)); }
     public static void moveCustomFilterPage(int direction, int screenWidth) {
         int size=customFilterPageSize(screenWidth), total=ChatUserFilters.categories().size();

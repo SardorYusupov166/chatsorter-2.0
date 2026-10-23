@@ -11,14 +11,35 @@ import java.util.List;
 /** Picker for stock photo backgrounds, local images, and readable chat palettes. */
 public final class ChatBackgroundSettingsScreen extends Screen {
     private final Screen parent;
+    private final int panelId;
     private int scroll;
     private static final int TOP = 72;
     private static final int ROW_HEIGHT = 82;
     private static final int GAP = 8;
 
     public ChatBackgroundSettingsScreen(Screen parent) {
+        this(parent, ChatPanelManager.BASE_CHAT_ID);
+    }
+
+    public ChatBackgroundSettingsScreen(Screen parent, int panelId) {
         super(Text.literal("ChatSorter — Фоны чата"));
         this.parent = parent;
+        this.panelId = panelId;
+    }
+
+    private String selectedBackground() { return panelId == -1 ? ChatBackgrounds.selectedId() : ChatPanelManager.background(panelId); }
+    private int selectedPalette() { return panelId == -1 ? ChatTheme.index() : ChatPanelManager.palette(panelId); }
+    private int selectedDarkening() { return panelId == -1 ? ChatBackgrounds.darkening() : ChatPanelManager.darkening(panelId); }
+    private void selectBackground(String id) {
+        if (panelId == -1) ChatBackgrounds.select(id); else ChatPanelManager.setBackground(panelId, id);
+    }
+    private void changePalette(int delta) {
+        int palette = selectedPalette() + delta;
+        if (panelId == -1) ChatTheme.setIndex(palette); else ChatPanelManager.setPalette(panelId, palette);
+    }
+    private void changeDarkening(int delta) {
+        int darkness = selectedDarkening() + delta;
+        if (panelId == -1) ChatBackgrounds.setDarkening(darkness); else ChatPanelManager.setDarkening(panelId, darkness);
     }
 
     @Override protected void init() {
@@ -52,16 +73,16 @@ public final class ChatBackgroundSettingsScreen extends Screen {
                             int mouseX, int mouseY, boolean active) {
         boolean hovered = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
         context.fill(x, y, x + w, y + h,
-            active ? ChatTheme.accent() : hovered ? 0xE03C444D : 0xD9252A30);
-        context.fill(x, y + h - 2, x + w, y + h, ChatTheme.bright());
+            active ? ChatTheme.accent(selectedPalette()) : hovered ? 0xE03C444D : 0xD9252A30);
+        context.fill(x, y + h - 2, x + w, y + h, ChatTheme.bright(selectedPalette()));
         context.drawCenteredTextWithShadow(textRenderer, label, x + w / 2, y + (h - 8) / 2, 0xFFFFFFFF);
     }
 
     @Override public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        ChatBackgrounds.renderBackground(context, 0, 0, width, height);
+        ChatBackgrounds.renderBackground(context, 0, 0, width, height, selectedBackground(), selectedPalette(), selectedDarkening());
         context.fill(0, 0, width, height, 0xA914181D);
         context.fill(0, 0, width, 54, 0xE51B2026);
-        context.fill(0, 52, width, 54, ChatTheme.bright());
+        context.fill(0, 52, width, 54, ChatTheme.bright(selectedPalette()));
         context.drawCenteredTextWithShadow(textRenderer, "Фоны и оформление чата", width / 2, 12, 0xFFFFFFFF);
         context.drawCenteredTextWithShadow(textRenderer,
             "Выберите фотографию и подходящую палитру. Фоны Unsplash сохраняются в кэш.", width / 2, 32, 0xFFD1D6DC);
@@ -78,15 +99,15 @@ public final class ChatBackgroundSettingsScreen extends Screen {
             if (i > 0 && col == 0) row++;
             int x = cardX(col), y = TOP + row * ROW_HEIGHT - scroll;
             if (y + ROW_HEIGHT < TOP || y > visibleBottom()) continue;
-            boolean selected = ChatBackgrounds.selectedId().equals(card.id());
+            boolean selected = selectedBackground().equals(card.id());
             context.fill(x, y, x + colW, y + ROW_HEIGHT - 5, selected ? 0xE032414B : 0xD922282E);
             ChatBackgrounds.renderPreview(context, card.id(), x + 5, y + 5, 124, ROW_HEIGHT - 15);
-            context.fill(x + 4, y + ROW_HEIGHT - 11, x + 130, y + ROW_HEIGHT - 6, selected ? ChatTheme.bright() : 0x804C555E);
+            context.fill(x + 4, y + ROW_HEIGHT - 11, x + 130, y + ROW_HEIGHT - 6, selected ? ChatTheme.bright(selectedPalette()) : 0x804C555E);
             context.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(card.title(), colW - 148),
                 x + 138, y + 11, 0xFFFFFFFF);
             context.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(card.subtitle(), colW - 148),
                 x + 138, y + 28, 0xFFB6BEC7);
-            if (selected) context.drawTextWithShadow(textRenderer, "✓ выбрано", x + 138, y + 48, ChatTheme.bright());
+            if (selected) context.drawTextWithShadow(textRenderer, "✓ выбрано", x + 138, y + 48, ChatTheme.bright(selectedPalette()));
             if (card.source() != null) {
                 context.drawTextWithShadow(textRenderer, "Unsplash License", x + 138, y + 62, 0xFF929CA6);
             }
@@ -99,13 +120,13 @@ public final class ChatBackgroundSettingsScreen extends Screen {
         drawButton(context, "Импорт фото", 12, controlsY, 126, 24, mouseX, mouseY, false);
 
         drawButton(context, "−", 152, controlsY, 24, 24, mouseX, mouseY, false);
-        context.drawCenteredTextWithShadow(textRenderer, "Затемнение: " + ChatBackgrounds.darkening() + "%",
+        context.drawCenteredTextWithShadow(textRenderer, "Затемнение: " + selectedDarkening() + "%",
             242, controlsY + 8, 0xFFE5E8EB);
         drawButton(context, "+", 282, controlsY, 24, 24, mouseX, mouseY, false);
 
         int themeX = 322;
         drawButton(context, "‹", themeX, controlsY, 24, 24, mouseX, mouseY, false);
-        context.drawCenteredTextWithShadow(textRenderer, "Тема: " + ChatTheme.name(),
+        context.drawCenteredTextWithShadow(textRenderer, "Тема: " + ChatTheme.paletteName(selectedPalette()),
             themeX + 128, controlsY + 8, 0xFFE5E8EB);
         drawButton(context, "›", themeX + 232, controlsY, 24, 24, mouseX, mouseY, false);
 
@@ -129,7 +150,7 @@ public final class ChatBackgroundSettingsScreen extends Screen {
                     int row = i / columns();
                     int x = cardX(col), y = TOP + row * ROW_HEIGHT - scroll;
                     if (mouseX >= x && mouseX < x + colW && mouseY >= y && mouseY < y + ROW_HEIGHT - 5) {
-                        ChatBackgrounds.select(cards.get(i).id());
+                        selectBackground(cards.get(i).id());
                         return true;
                     }
                 }
@@ -137,24 +158,24 @@ public final class ChatBackgroundSettingsScreen extends Screen {
             int controlsY = height - 68;
             if (mouseY >= controlsY && mouseY < controlsY + 24) {
                 if (mouseX >= 12 && mouseX < 138) {
-                    ChatBackgrounds.importImage();
+                    ChatBackgrounds.importImage(panelId);
                     return true;
                 }
                 if (mouseX >= 152 && mouseX < 176) {
-                    ChatBackgrounds.setDarkening(ChatBackgrounds.darkening() - 5);
+                    changeDarkening(-5);
                     return true;
                 }
                 if (mouseX >= 282 && mouseX < 306) {
-                    ChatBackgrounds.setDarkening(ChatBackgrounds.darkening() + 5);
+                    changeDarkening(5);
                     return true;
                 }
                 int themeX = 322;
                 if (mouseX >= themeX && mouseX < themeX + 24) {
-                    ChatTheme.setIndex(ChatTheme.index() - 1);
+                    changePalette(-1);
                     return true;
                 }
                 if (mouseX >= themeX + 232 && mouseX < themeX + 256) {
-                    ChatTheme.setIndex(ChatTheme.index() + 1);
+                    changePalette(1);
                     return true;
                 }
                 if (mouseX >= width - 122 && mouseX < width - 12) {

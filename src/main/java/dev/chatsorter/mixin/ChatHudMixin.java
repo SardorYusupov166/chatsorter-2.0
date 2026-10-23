@@ -46,11 +46,6 @@ public abstract class ChatHudMixin {
     @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("HEAD"), cancellable = true)
     private void chatsorter$translate(DrawContext context, TextRenderer textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
         ChatHud hud = (ChatHud)(Object)this;
-        if (ChatPanelManager.enabled() && hud == MinecraftClient.getInstance().inGameHud.getChatHud()) {
-            if (!chatHidden) ChatPanelManager.render(context, textRenderer, currentTick, mouseX, mouseY, focused, false);
-            ci.cancel();
-            return;
-        }
         context.getMatrices().pushMatrix();
         chatsorter$matrixPushed = true;
         context.getMatrices().translate(ChatPanelManager.offsetX(hud), ChatPanelManager.offsetY(hud));
@@ -68,7 +63,8 @@ public abstract class ChatHudMixin {
             int scaledWidth = (int)Math.round(width * scale);
             int scaledHeight = (int)Math.round(height * scale);
             int top = mc.getWindow().getScaledHeight() - 40 - scaledHeight;
-            ChatBackgrounds.renderBackground(context, 0, top, scaledWidth, scaledHeight);
+            ChatBackgrounds.renderBackground(context, 0, top, scaledWidth, scaledHeight,
+                ChatPanelManager.background(hud), ChatPanelManager.palette(hud), ChatPanelManager.darkening(hud));
         }
     }
     @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("RETURN"))
@@ -77,6 +73,10 @@ public abstract class ChatHudMixin {
             if (!chatHidden) chatsorter$renderAlertHighlights(context);
             context.getMatrices().popMatrix();
             chatsorter$matrixPushed = false;
+        }
+        if (!chatHidden && ChatPanelManager.enabled()
+                && (ChatHud)(Object)this == MinecraftClient.getInstance().inGameHud.getChatHud()) {
+            ChatPanelManager.render(context, textRenderer, currentTick, mouseX, mouseY, focused, false);
         }
     }
     @Inject(method = "addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V", at = @At("HEAD"), cancellable = true)
@@ -87,7 +87,7 @@ public abstract class ChatHudMixin {
     private void chatsorter$renderAlertHighlights(DrawContext context) {
         ChatHud hud = (ChatHud)(Object)this;
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.player == null || (ChatPanelManager.enabled() && hud == mc.inGameHud.getChatHud())) return;
+        if (mc.player == null) return;
         double scale = mc.options.getChatScale().getValue();
         if (scale <= 0) return;
         ChatHudAccess access = (ChatHudAccess)hud;

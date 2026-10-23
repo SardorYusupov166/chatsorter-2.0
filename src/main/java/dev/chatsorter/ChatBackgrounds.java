@@ -111,6 +111,9 @@ public final class ChatBackgrounds {
         if (!"none".equals(id)) requestTexture(id, false);
     }
 
+    static Template templateForPanel(String id) { return template(id); }
+    static void requestTextureForPanel(String id) { if (id != null && !"none".equals(id)) requestTexture(id, false); }
+
     public static void requestAllThumbnails() {
         load();
         for (Template template : TEMPLATES) requestTexture(template.id(), true);
@@ -119,13 +122,19 @@ public final class ChatBackgrounds {
 
     public static void renderBackground(DrawContext context, int x, int y, int width, int height) {
         load();
-        if (width <= 0 || height <= 0 || "none".equals(selected)) return;
-        renderImage(context, selected, false, x, y, width, height);
-        if (darkening > 0) {
-            int alpha = Math.round(darkening * 255.0f / 100.0f);
+        renderBackground(context, x, y, width, height, selected, ChatTheme.index(), darkening);
+    }
+
+    public static void renderBackground(DrawContext context, int x, int y, int width, int height,
+                                        String imageId, int palette, int darkness) {
+        load();
+        if (width <= 0 || height <= 0 || "none".equals(imageId)) return;
+        renderImage(context, imageId, false, x, y, width, height);
+        if (darkness > 0) {
+            int alpha = Math.round(clamp(darkness, 0, 85) * 255.0f / 100.0f);
             context.fill(x, y, x + width, y + height, (alpha << 24));
         }
-        int border = ChatTheme.accent();
+        int border = ChatTheme.accent(palette);
         context.fill(x, y, x + width, y + 1, border);
         context.fill(x, y + height - 1, x + width, y + height, border);
         context.fill(x, y, x + 1, y + height, border);
@@ -148,8 +157,19 @@ public final class ChatBackgrounds {
             requestTexture(id, thumbnail);
             return;
         }
-        context.drawTexture(RenderPipelines.GUI_TEXTURED, info.identifier(), x, y, 0.0f, 0.0f,
-            width, height, info.width(), info.height(), 0xFFFFFFFF);
+        double sourceAspect = info.width() / (double) info.height();
+        double targetAspect = width / (double) height;
+        int regionWidth = info.width(), regionHeight = info.height();
+        float u = 0, v = 0;
+        if (sourceAspect > targetAspect) {
+            regionWidth = Math.max(1, (int)Math.round(info.height() * targetAspect));
+            u = (info.width() - regionWidth) / 2.0f;
+        } else if (sourceAspect < targetAspect) {
+            regionHeight = Math.max(1, (int)Math.round(info.width() / targetAspect));
+            v = (info.height() - regionHeight) / 2.0f;
+        }
+        context.drawTexture(RenderPipelines.GUI_TEXTURED, info.identifier(), x, y, u, v,
+            width, height, regionWidth, regionHeight, info.width(), info.height(), 0xFFFFFFFF);
     }
 
     private static void requestTexture(String id, boolean thumbnail) {
@@ -284,6 +304,10 @@ public final class ChatBackgrounds {
     }
 
     public static void importImage() {
+        importImage(-1);
+    }
+
+    public static void importImage(int panelId) {
         MinecraftClient client = MinecraftClient.getInstance();
         Thread chooser = new Thread(() -> {
             try {
@@ -319,7 +343,7 @@ public final class ChatBackgrounds {
                 client.execute(() -> {
                     importError = "";
                     LOAD_ERRORS.remove(id + ":thumb");
-                    select(id);
+                    if (panelId == -1) select(id); else ChatPanelManager.setBackground(panelId, id);
                 });
             } catch (Exception e) {
                 String message = e.getMessage() == null ? "Не удалось импортировать изображение" : e.getMessage();
