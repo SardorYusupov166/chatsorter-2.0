@@ -426,14 +426,13 @@ public final class ChatPanelManager {
             double newHeight = oldHeight;
             if (resizeRight) newWidth += dx / scale;
             if (resizeLeft) newWidth -= dx / scale;
-            if (resizeBottom) newHeight += dy / scale;
             if (resizeTop) newHeight -= dy / scale;
+            if (resizeBottom) dragging.y += (int)Math.round(dy);
             dragging.width = clamp((int)Math.round(newWidth), MIN_WIDTH,
                 Math.max(MIN_WIDTH, (int)Math.floor((screenWidth - 8) / scale)));
             dragging.height = clamp((int)Math.round(newHeight), MIN_HEIGHT,
                 Math.max(MIN_HEIGHT, (int)Math.floor((screenHeight - 48) / scale)));
             if (resizeLeft) dragging.x -= (int)Math.round((dragging.width - oldWidth) * scale);
-            if (resizeTop) dragging.y += (int)Math.round((dragging.height - oldHeight) * scale);
         } else {
             dragging.x += (int)Math.round(dx);
             dragging.y += (int)Math.round(dy);
