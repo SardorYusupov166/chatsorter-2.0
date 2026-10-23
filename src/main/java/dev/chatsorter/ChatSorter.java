@@ -28,7 +28,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatSorter implements ClientModInitializer {
-    public static final String VERSION = "2.0.0-alpha.10";
+    public static final String VERSION = "2.0.0-alpha.13";
     private static final int MAX_CHAT_HISTORY = 16_384;
     private static final DateTimeFormatter MESSAGE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     public static int maxChatHistory() { return MAX_CHAT_HISTORY; }
@@ -178,6 +178,7 @@ public class ChatSorter implements ClientModInitializer {
         ChatPosition.load();
         KeywordAlerts.load();
         ChatTheme.load();
+        ChatBackgrounds.load();
         ChatExperienceSettings.load();
         ChatUserFilters.load();
         AlertHotkey.load();
