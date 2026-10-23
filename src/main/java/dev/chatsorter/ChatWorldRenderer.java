@@ -71,7 +71,10 @@ public final class ChatWorldRenderer {
             int width = effectiveWidth(client, hud);
             int height = effectiveHeight(client, hud);
             float scale = worldScale(client);
-            double side = (width * scale * 0.5 + 0.08) * (column == 0 ? -1 : 1);
+            // A single chat belongs in the centre of the player's view. With
+            // multiple chats, fan them out symmetrically in the player's plane.
+            double side = chats.size() == 1 ? 0.0
+                : (width * scale * 0.5 + 0.08) * (column == 0 ? -1 : 1);
             double lift = -row * (Math.min(height, 180) * scale + 0.08);
             double anchorX = originX + rightX * side - cameraPos.x;
             double anchorY = originY + lift - cameraPos.y;
@@ -116,22 +119,32 @@ public final class ChatWorldRenderer {
 
         float left = -width / 2.0F;
         float top = -height / 2.0F;
-        int background = rpgStyle ? 0xB80B0A17 : 0xB8000000;
-        int headerBackground = rpgStyle ? 0xE0181428 : 0xD322272D;
+        int background = rpgStyle ? 0xA9080B18 : 0xA8000000;
+        int headerBackground = rpgStyle ? 0xD4101930 : 0xC322272D;
 
-        // A thin halo and frame are built from text-background quads, so no texture or custom pipeline is needed.
+        // Layered edge light and separated corner brackets make this read as a
+        // projected system panel rather than a flat chat window. All geometry
+        // uses text background quads, so it stays cheap and needs no textures.
         if (rpgStyle && ChatExperienceSettings.rpgGlowEnabled) {
-            int alpha = ChatExperienceSettings.rpgAnimationEnabled
-                ? 20 + (int)((Math.sin(tick * 0.035) + 1.0) * 8.0) : 22;
-            submitBackground(queue, renderer, matrices, left - 3, top - 2, width + 6, withAlpha(accent, alpha));
+            int pulse = ChatExperienceSettings.rpgAnimationEnabled
+                ? 15 + (int)((Math.sin(tick * 0.035) + 1.0) * 7.0) : 18;
+            submitBackground(queue, renderer, matrices, left - 4, top - 3, width + 8, withAlpha(accent, pulse));
+            submitBackground(queue, renderer, matrices, left - 2, top - 2, width + 4, withAlpha(0xFF8BDFFF, pulse / 2));
         }
         submitBackground(queue, renderer, matrices, left, top, width, background);
-        submitBackground(queue, renderer, matrices, left, top, width, withAlpha(accent, 220));
-        submitBackground(queue, renderer, matrices, left + width - 2, top, 2, 0xFF9BE8FF);
-        submitBackground(queue, renderer, matrices, left, top + height - 9, width, withAlpha(accent, 190));
-        submitBackground(queue, renderer, matrices, left, top + 1, width, headerBackground);
+        submitBackground(queue, renderer, matrices, left + 2, top + 2, width - 4, withAlpha(accent, 210));
+        submitBackground(queue, renderer, matrices, left + 3, top + 3, width - 6, background);
+        submitBackground(queue, renderer, matrices, left + 7, top + 4, width - 14, headerBackground);
+        submitBackground(queue, renderer, matrices, left + 7, top + 15, width - 14, withAlpha(accent, 125));
+        submitBackground(queue, renderer, matrices, left + 1, top + 6, 2, 10, withAlpha(0xFF9BE8FF, 235));
+        submitBackground(queue, renderer, matrices, left + width - 3, top + 6, 2, 10, withAlpha(0xFF9BE8FF, 235));
+        submitBackground(queue, renderer, matrices, left + 7, top + height - 3, width - 14, 1, withAlpha(accent, 210));
+        drawCorner(queue, renderer, matrices, left + 2, top + 2, 1, 1, accent);
+        drawCorner(queue, renderer, matrices, left + width - 2, top + 2, -1, 1, accent);
+        drawCorner(queue, renderer, matrices, left + 2, top + height - 2, 1, -1, accent);
+        drawCorner(queue, renderer, matrices, left + width - 2, top + height - 2, -1, -1, accent);
 
-        String title = "ЧАТ " + (index + 1) + (rpgStyle ? "  ·  RPG" : "");
+        String title = rpgStyle ? "◈ СИСТЕМА  /  ЧАТ " + (index + 1) : "ЧАТ " + (index + 1);
         queue.submitText(matrices, left + 8, top + 2, Text.literal(title).asOrderedText(), false,
             TextRenderer.TextLayerType.SEE_THROUGH, FULL_BRIGHT, 0xFFDCEBFF, 0, 0);
 
@@ -151,9 +164,12 @@ public final class ChatWorldRenderer {
         if (rpgStyle && ChatExperienceSettings.rpgParticlesEnabled) {
             double phase = tick * 0.045 + index * 1.7;
             float particleX = (float)(left + 14 + (width - 28) * ((Math.sin(phase) + 1.0) * 0.5));
-            submitBackground(queue, renderer, matrices, particleX, top - 1, 4, 0xB09BE8FF);
-            if (index % 2 == 0)
-                submitBackground(queue, renderer, matrices, left + width - 2, top + 18, 4, 0xA09D82FF);
+            submitBackground(queue, renderer, matrices, particleX, top - 2, 3, 3, 0xD09BE8FF);
+            submitBackground(queue, renderer, matrices, left + width - 3, top + height - 7, 2, 2, 0xC09D82FF);
+        }
+        if (rpgStyle && ChatExperienceSettings.rpgAnimationEnabled) {
+            int scanY = (int)(Math.floorMod(tick + index * 19, Math.max(1, height - 21)));
+            submitBackground(queue, renderer, matrices, left + 9, top + 16 + scanY, width - 18, 0x129BE8FF);
         }
         matrices.pop();
     }
@@ -166,6 +182,23 @@ public final class ChatWorldRenderer {
         String blank = " ".repeat(count);
         queue.submitText(matrices, x, y, Text.literal(blank).asOrderedText(), false,
             TextRenderer.TextLayerType.SEE_THROUGH, FULL_BRIGHT, 0x00000000, color, 0);
+    }
+
+    private static void submitBackground(RenderCommandQueue queue, TextRenderer renderer, MatrixStack matrices,
+                                         float x, float y, int width, int height, int color) {
+        for (int row = 0; row < height; row++) submitBackground(queue, renderer, matrices, x, y + row, width, color);
+    }
+
+    private static void drawCorner(RenderCommandQueue queue, TextRenderer renderer, MatrixStack matrices,
+                                   float x, float y, int directionX, int directionY, int accent) {
+        int bright = withAlpha(accent, 245);
+        float horizontalX = directionX > 0 ? x : x - 9;
+        float verticalY = directionY > 0 ? y : y - 8;
+        submitBackground(queue, renderer, matrices, horizontalX, y, 9, bright);
+        submitBackground(queue, renderer, matrices, x, verticalY, 1, 8, bright);
+        float innerX = x + directionX * 4;
+        float innerY = y + directionY * 4;
+        submitBackground(queue, renderer, matrices, Math.min(x, innerX), innerY, 5, withAlpha(0xFF9BE8FF, 225));
     }
 
     private static String orderedTextToString(net.minecraft.text.OrderedText orderedText) {
