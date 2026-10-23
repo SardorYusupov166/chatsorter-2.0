@@ -268,19 +268,20 @@ public class ChatSorter implements ClientModInitializer {
                 && normalizeRepeatText(previous.message.getString()).equals(normalizeRepeatText(raw))) {
             previous.appendSource(sourceRecord(message, raw, tab, sender, custom.categories()));
             MESSAGE_STORE.addSource(previous, previous.sourceRecords().get(previous.sourceRecords().size() - 1));
-            KeywordAlerts.notifyIfMatched(raw);
+            if (KeywordAlerts.notifyIfMatched(raw)) previous.alertTriggered = true;
             if (visible || isSearching()) refreshChat();
             else ChatPanelManager.refresh();
             saveHistory(false);
             return false;
         }
 
-        KeywordAlerts.notifyIfMatched(raw);
+        boolean alertTriggered = KeywordAlerts.notifyIfMatched(raw);
         String now = LocalDateTime.now().format(MESSAGE_TIME);
         String tech = "category=" + tab.name() + "; sender=" + sender
             + "; signature=" + (signature == null ? "none" : signature)
             + "; indicator=" + (indicator == null || indicator.text() == null ? "none" : indicator.text().getString());
         ChatHistoryEntry entry = new ChatHistoryEntry(sourceRecord(message, raw, tab, sender, custom.categories()), now, tab, tech, false);
+        entry.alertTriggered = alertTriggered;
         addToMemory(entry);
         lastReceivedEntry = entry;
         HUD_ENTRIES.put(message, entry);
