@@ -57,7 +57,7 @@ public abstract class ChatScreenMixin extends Screen {
     @Inject(method = "render", at = @At("TAIL"))
     private void chatsorter$render(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         chatsorter$pollDrag();
-        ChatPanelManager.pollDividerDrag(this.width);
+        ChatPanelManager.pollWindowDrag(this.width, this.height);
         // Invisible hit areas: drag the message body; resize by grabbing its edges.
         List<ChatSorter.FilterToggle> toggles = ChatSorter.filterToggles(this.width);
         List<ChatSorter.FilterToggle> standard = toggles.stream().filter(t -> {
@@ -66,10 +66,12 @@ public abstract class ChatScreenMixin extends Screen {
         List<ChatSorter.FilterToggle> custom = toggles.stream().filter(t -> t.key().startsWith("custom:")).toList();
         ChatSorter.FilterToggle favorite = toggles.stream().filter(t -> t.key().equals("favorites")).findFirst().orElse(null);
         int builtinCount = standard.size();
-        boolean panelsHovered = mouseX >= 5 && mouseX < 99 && mouseY >= 47 && mouseY < 68;
-        context.fill(5, 47, 99, 68, panelsHovered ? ChatTheme.accent() : 0xCB25282D);
-        context.drawCenteredTextWithShadow(this.textRenderer, ChatPanelManager.enabled() ? "Панели чата: 2" : "Панели чата: 1",
-            52, 53, 0xFFE2E5E8);
+        boolean canAddPanel = ChatPanelManager.canAdd();
+        boolean panelsHovered = mouseX >= 5 && mouseX < 132 && mouseY >= 47 && mouseY < 68;
+        context.fill(5, 47, 132, 68, panelsHovered && canAddPanel ? ChatTheme.accent() : 0xCB25282D);
+        context.drawCenteredTextWithShadow(this.textRenderer,
+            canAddPanel ? "+ Добавить (" + ChatPanelManager.count() + "/5)" : "Чатов: 5/5",
+            68, 53, canAddPanel ? 0xFFE2E5E8 : 0xFF8B9095);
         if (!ChatPanelManager.enabled()) {
         int x = chatsorter$tabX(builtinCount);
         int y = 7;
@@ -145,7 +147,7 @@ public abstract class ChatScreenMixin extends Screen {
         int originX = chatsorter$activeClickHud != null && ChatPanelManager.isPanelHud(chatsorter$activeClickHud)
             ? ChatPanelManager.offsetX(chatsorter$activeClickHud) : ChatPosition.x;
         args.set(1, (Integer)args.get(1) - originX);
-        args.set(2, (Integer)args.get(2) - ChatPosition.y);
+        args.set(2, (Integer)args.get(2) - ChatPanelManager.offsetY(chatsorter$activeClickHud));
     }
 
     @org.spongepowered.asm.mixin.injection.Redirect(method = "mouseClicked", at = @At(value = "INVOKE",
@@ -262,7 +264,7 @@ public abstract class ChatScreenMixin extends Screen {
         ChatHud hud = ChatPanelManager.enabled() ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : mc.inGameHud.getChatHud();
         if (hud == null) return null;
         double chatX = ChatPanelManager.localX(hud, mouseX);
-        double chatBottom = this.height - 40 + ChatPosition.y;
+        double chatBottom = this.height - 40 + ChatPanelManager.offsetY(hud);
         double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0);
         double chatY = (chatBottom - mouseY) / scale;
         int index = (int)Math.floor(chatY / lineHeight);
@@ -417,7 +419,7 @@ public abstract class ChatScreenMixin extends Screen {
 
     @Inject(method = "mouseClicked", at = @At("RETURN"), cancellable = true)
     private void chatsorter$startDrag(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
-        if (cir.getReturnValueZ()) return;
+        if (cir.getReturnValueZ() || ChatPanelManager.enabled()) return;
         for (net.minecraft.client.gui.Element child : children()) {
             if (child.isMouseOver(click.x(), click.y())) return;
         }
@@ -470,7 +472,7 @@ public abstract class ChatScreenMixin extends Screen {
         double scale = mc.options.getChatScale().getValue();
         if (scale <= 0) return false;
         double chatX = ChatPanelManager.localX(hud, mouseX);
-        double chatY = (this.height - 40 + ChatPosition.y - mouseY) / scale;
+        double chatY = (this.height - 40 + ChatPanelManager.offsetY(hud) - mouseY) / scale;
         double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0);
         int index = (int) Math.floor(chatY / lineHeight);
         if (chatX < 0 || (ChatPanelManager.width(hud) >= 0 && chatX > ChatPanelManager.width(hud)) || index < 0 || chatY < 0) return false;
