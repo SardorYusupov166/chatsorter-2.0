@@ -9,15 +9,19 @@ public final class ChatTheme {
     private static final Path PATH = Path.of("config", "chatsorter", "theme.properties");
     private static final String[] NAMES = {
         "Изумрудная", "Гранатовая", "Синяя", "Фиолетовая", "Графитовая",
-        "Янтарная", "Бирюзовая", "Розовая"
+        "Янтарная", "Бирюзовая", "Розовая",
+        "КРД — дыхание солнца", "SAO — Айнкрад", "Магическая битва",
+        "Паразит", "Соло левелинг"
     };
     private static final int[] ACCENTS = {
         0xE048604C, 0xE06B283C, 0xE02B537C, 0xE0593979,
-        0xE044484E, 0xE0785527, 0xE02D6661, 0xE0783E62
+        0xE044484E, 0xE0785527, 0xE02D6661, 0xE0783E62,
+        0xE0446B42, 0xE0274266, 0xE04C346F, 0xE02E493A, 0xE0342D60
     };
     private static final int[] BRIGHTS = {
         0xFF91C79B, 0xFFCE7892, 0xFF82B7E9, 0xFFBE9AE8,
-        0xFFB5BCC3, 0xFFFFC66D, 0xFF79D6C3, 0xFFFFA1C2
+        0xFFB5BCC3, 0xFFFFC66D, 0xFF79D6C3, 0xFFFFA1C2,
+        0xFFFFA45A, 0xFF83D7F5, 0xFFBA76EF, 0xFFA4E268, 0xFF9C8CFF
     };
     private static int index;
 
