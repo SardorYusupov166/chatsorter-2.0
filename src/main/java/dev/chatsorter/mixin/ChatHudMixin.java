@@ -55,7 +55,10 @@ public abstract class ChatHudMixin {
         context.getMatrices().pushMatrix();
         chatsorter$matrixPushed = true;
         context.getMatrices().translate(ChatPanelManager.offsetX(hud), ChatPanelManager.offsetY(hud));
-        if (!chatHidden) {
+        // A themed panel belongs to the open chat screen. The vanilla HUD keeps
+        // rendering fading chat lines after ChatScreen closes, so drawing this
+        // full-size background there leaves an opaque panel over the world.
+        if (!chatHidden && focused) {
             MinecraftClient mc = MinecraftClient.getInstance();
             int width = ChatPanelManager.width(hud);
             if (width < 0) width = ChatPosition.width > 0
