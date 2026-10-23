@@ -11,10 +11,26 @@ public final class KeywordAlerts {
     private static final Path PATH = Paths.get("config", "chatsorter-keywords.txt");
     private static final Path SETTINGS = Paths.get("config", "chatsorter-alerts.properties");
     private static float volume = 1.0F;
+    private static final String[] HIGHLIGHT_NAMES = {"Голубая", "Золотая", "Красная", "Зелёная", "Фиолетовая", "Бирюзовая", "Розовая", "Белая"};
+    private static final int[] HIGHLIGHT_COLORS = {
+        0x584F9EFF, 0x58FFC247, 0x58F24F5C, 0x584BCB78,
+        0x588C5FF5, 0x583BC9BA, 0x58F075B1, 0x58FFFFFF
+    };
+    private static int highlightIndex = 1;
     private static final String[] LEGACY_SOUND_IDS = {"minecraft:entity.experience_orb.pickup", "minecraft:block.note_block.bell", "minecraft:block.note_block.pling", "minecraft:entity.player.levelup", "minecraft:ui.button.click", "minecraft:block.amethyst_block.chime", "minecraft:item.totem.use", "minecraft:block.portal.trigger"};
     private static String soundId = LEGACY_SOUND_IDS[0];
     private static List<String> soundIds = List.of();
     public static float volume() { return volume; }
+    public static int highlightColor() { return HIGHLIGHT_COLORS[highlightIndex]; }
+    public static int highlightColorAt(int index) { return HIGHLIGHT_COLORS[Math.floorMod(index, HIGHLIGHT_COLORS.length)]; }
+    public static int highlightPreviewColor() { return 0xFF000000 | (highlightColor() & 0x00FFFFFF); }
+    public static int highlightColorCount() { return HIGHLIGHT_COLORS.length; }
+    public static String highlightColorName(int index) { return HIGHLIGHT_NAMES[Math.floorMod(index, HIGHLIGHT_NAMES.length)]; }
+    public static int highlightColorIndex() { return highlightIndex; }
+    public static void setHighlightColorIndex(int index) {
+        highlightIndex = Math.floorMod(index, HIGHLIGHT_COLORS.length);
+        saveSettings();
+    }
     public static String soundId() { return soundId; }
     public static List<String> sounds() {
         if (soundIds.isEmpty()) {
@@ -44,6 +60,7 @@ public final class KeywordAlerts {
             Properties props = new Properties();
             props.setProperty("volume", Float.toString(volume));
             props.setProperty("sound_id", soundId);
+            props.setProperty("highlight_color", Integer.toString(highlightIndex));
             try (java.io.OutputStream out = Files.newOutputStream(SETTINGS)) { props.store(out, "ChatSorter notification sound"); }
         } catch (Exception e) { System.err.println("[ChatSorter] Cannot save alert settings: " + e); }
     }
@@ -62,6 +79,7 @@ public final class KeywordAlerts {
                     savedId = LEGACY_SOUND_IDS[oldIndex];
                 }
                 if (sounds().contains(savedId)) soundId = savedId;
+                highlightIndex = Math.floorMod(Integer.parseInt(props.getProperty("highlight_color", "1")), HIGHLIGHT_COLORS.length);
             }
         } catch (Exception e) { System.err.println("[ChatSorter] Cannot load alert settings: " + e); }
         try {
@@ -104,10 +122,10 @@ public final class KeywordAlerts {
         if (dm.matches() && dm.group(1).equalsIgnoreCase(nick)) return "SUPPRESSED_OWN";
         return "OTHER_OR_UNKNOWN";
     }
-    public static void notifyIfMatched(String message) {
+    public static boolean notifyIfMatched(String message) {
         if (words.isEmpty()) {
             ChatSorterDiagnostics.alertNoMatch(message, List.of());
-            return;
+            return false;
         }
         MinecraftClient mc = MinecraftClient.getInstance();
         String reason = ownReason(message, mc);
@@ -122,12 +140,12 @@ public final class KeywordAlerts {
                 String status = suppressed ? reason : (volume <= 0 || mc.player == null ? "MATCHED_SILENT" : "PLAYBACK_QUEUED");
                 ChatSorterDiagnostics.alert(word, message, status, volume, soundId);
                 ChatSorterDiagnostics.alertDecision(word, message, reason, status);
-                if (!suppressed && "PLAYBACK_QUEUED".equals(status)) {
-                    IndependentNotificationAudio.play(soundId, volume, "ключевое слово: " + word);
-                }
-                return;
+                boolean played = !suppressed && "PLAYBACK_QUEUED".equals(status);
+                if (played) IndependentNotificationAudio.play(soundId, volume, "ключевое слово: " + word);
+                return played;
             }
         }
         ChatSorterDiagnostics.alertNoMatch(message, List.copyOf(words));
+        return false;
     }
 }
