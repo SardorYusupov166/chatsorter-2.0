@@ -2,6 +2,7 @@ package dev.chatsorter.mixin;
 
 import dev.chatsorter.ChatSorter;
 import dev.chatsorter.ChatPanelManager;
+import dev.chatsorter.ChatBackgrounds;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.MessageIndicator;
