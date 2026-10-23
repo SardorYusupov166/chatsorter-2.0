@@ -110,9 +110,11 @@ public final class ChatBackgroundSettingsScreen extends Screen {
         drawButton(context, "›", themeX + 232, controlsY, 24, 24, mouseX, mouseY, false);
 
         drawButton(context, "Готово", width - 122, controlsY, 110, 24, mouseX, mouseY, false);
-        context.drawTextWithShadow(textRenderer,
-            "Свой фон можно выбрать на компьютере. Поддерживаются PNG, JPG, WEBP и BMP (до 20 МБ).",
-            12, height - 28, 0xFFADB5BE);
+        String importMessage = ChatBackgrounds.importError().isBlank()
+            ? "Свой фон: PNG, JPG или BMP (до 20 МБ)."
+            : "Ошибка импорта: " + ChatBackgrounds.importError();
+        context.drawTextWithShadow(textRenderer, textRenderer.trimToWidth(importMessage, width - 24),
+            12, height - 28, ChatBackgrounds.importError().isBlank() ? 0xFFADB5BE : 0xFFFF7777);
         super.render(context, mouseX, mouseY, delta);
     }
 
