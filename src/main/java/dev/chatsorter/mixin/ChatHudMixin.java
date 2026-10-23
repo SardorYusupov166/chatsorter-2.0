@@ -5,6 +5,7 @@ import dev.chatsorter.ChatHistoryEntry;
 import dev.chatsorter.KeywordAlerts;
 import dev.chatsorter.ChatPanelManager;
 import dev.chatsorter.ChatBackgrounds;
+import dev.chatsorter.ChatRpgRenderer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
@@ -65,6 +66,10 @@ public abstract class ChatHudMixin {
             int top = mc.getWindow().getScaledHeight() - 40 - scaledHeight;
             ChatBackgrounds.renderBackground(context, 0, top, scaledWidth, scaledHeight,
                 ChatPanelManager.background(hud), ChatPanelManager.palette(hud), ChatPanelManager.darkening(hud));
+            if (ChatPanelManager.usesRpgStyle(hud)) {
+                ChatRpgRenderer.renderFrame(context, 0, top, scaledWidth, scaledHeight,
+                    ChatPanelManager.palette(hud), currentTick, 0.0F);
+            }
         }
     }
     @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("RETURN"))

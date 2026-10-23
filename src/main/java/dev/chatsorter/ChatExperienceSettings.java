@@ -17,6 +17,10 @@ public final class ChatExperienceSettings {
     /** Number of most recent records to reprocess and display when chat filters change. */
     public static int chatDisplayLimit = 500;
     public static boolean customFiltersEnabled = true;
+    public static boolean rpgModeEnabled;
+    public static boolean rpgGlowEnabled = true;
+    public static boolean rpgAnimationEnabled = true;
+    public static boolean rpgParticlesEnabled = true;
     public static final Set<String> hiddenStandardFilters = new LinkedHashSet<>();
 
     public static void load() {
@@ -28,6 +32,10 @@ public final class ChatExperienceSettings {
             restoreLimit = clamp(Integer.parseInt(p.getProperty("restoreLimit", "2000")));
             chatDisplayLimit = clampDisplayLimit(Integer.parseInt(p.getProperty("chatDisplayLimit", "500")));
             customFiltersEnabled = Boolean.parseBoolean(p.getProperty("customFiltersEnabled", "true"));
+            rpgModeEnabled = Boolean.parseBoolean(p.getProperty("rpgModeEnabled", "false"));
+            rpgGlowEnabled = Boolean.parseBoolean(p.getProperty("rpgGlowEnabled", "true"));
+            rpgAnimationEnabled = Boolean.parseBoolean(p.getProperty("rpgAnimationEnabled", "true"));
+            rpgParticlesEnabled = Boolean.parseBoolean(p.getProperty("rpgParticlesEnabled", "true"));
             hiddenStandardFilters.clear();
             for (String key : p.getProperty("hiddenStandardFilters", "").split(",")) {
                 if (!key.isBlank()) hiddenStandardFilters.add(key.strip());
@@ -43,6 +51,10 @@ public final class ChatExperienceSettings {
             p.setProperty("restoreLimit", Integer.toString(clamp(restoreLimit)));
             p.setProperty("chatDisplayLimit", Integer.toString(clampDisplayLimit(chatDisplayLimit)));
             p.setProperty("customFiltersEnabled", Boolean.toString(customFiltersEnabled));
+            p.setProperty("rpgModeEnabled", Boolean.toString(rpgModeEnabled));
+            p.setProperty("rpgGlowEnabled", Boolean.toString(rpgGlowEnabled));
+            p.setProperty("rpgAnimationEnabled", Boolean.toString(rpgAnimationEnabled));
+            p.setProperty("rpgParticlesEnabled", Boolean.toString(rpgParticlesEnabled));
             p.setProperty("hiddenStandardFilters", String.join(",", hiddenStandardFilters));
             try (var out = Files.newOutputStream(FILE)) { p.store(out, "ChatSorter chat experience"); }
         } catch (Exception e) { System.err.println("[ChatSorter] Could not save experience settings: " + e.getMessage()); }

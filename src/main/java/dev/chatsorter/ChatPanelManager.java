@@ -30,6 +30,7 @@ public final class ChatPanelManager {
     private static boolean rebuilding;
     private static String serverKey = "unknown";
     private static String baseBackground = "none";
+    private static String baseStyle = "dark_system";
     private static int basePalette;
     private static int baseDarkening = 52;
     private static int nextId;
@@ -44,6 +45,7 @@ public final class ChatPanelManager {
         boolean filterPopup;
         int filterPopupScroll;
         String background = "none";
+        String style = "dark_system";
         int palette;
         int darkening = 52;
         int x = 24;
@@ -56,6 +58,7 @@ public final class ChatPanelManager {
             this.id = id;
             filters.add("ALL");
             background = baseBackground;
+            style = baseStyle;
             palette = basePalette;
             darkening = baseDarkening;
         }
@@ -101,11 +104,19 @@ public final class ChatPanelManager {
         Panel panel = panelFor(hud);
         return panel == null ? -1 : panel.id;
     }
+    public static String style(ChatHud hud) {
+        Panel panel = panelFor(hud);
+        return panel == null ? baseStyle : panel.style;
+    }
+    public static boolean usesRpgStyle(ChatHud hud) {
+        return ChatExperienceSettings.rpgModeEnabled && "dark_system".equals(style(hud));
+    }
     private static Panel panelById(int id) {
         for (Panel panel : PANELS) if (panel.id == id) return panel;
         return null;
     }
     public static String background(int id) { Panel p = panelById(id); return id == BASE_CHAT_ID ? baseBackground : p == null ? "none" : p.background; }
+    public static String style(int id) { Panel p = panelById(id); return id == BASE_CHAT_ID ? baseStyle : p == null ? "classic" : p.style; }
     public static int palette(int id) { Panel p = panelById(id); return id == BASE_CHAT_ID ? basePalette : p == null ? ChatTheme.index() : p.palette; }
     public static int darkening(int id) { Panel p = panelById(id); return id == BASE_CHAT_ID ? baseDarkening : p == null ? 52 : p.darkening; }
     public static void setBackground(int id, String value) {
@@ -124,6 +135,12 @@ public final class ChatPanelManager {
         ChatBackgrounds.Template template = ChatBackgrounds.templateForPanel(value);
         if (template != null) p.palette = template.palette();
         save();
+    }
+    public static void setStyle(int id, String value) {
+        if (!"classic".equals(value) && !"dark_system".equals(value)) return;
+        Panel p = panelById(id);
+        if (id == BASE_CHAT_ID) { baseStyle = value; save(); }
+        else if (p != null) { p.style = value; save(); }
     }
     public static void setPalette(int id, int value) {
         Panel p = panelById(id);
@@ -166,6 +183,7 @@ public final class ChatPanelManager {
         dragging = null;
         nextId = 0;
         baseBackground = ChatBackgrounds.selectedId();
+        baseStyle = "dark_system";
         basePalette = ChatTheme.index();
         baseDarkening = ChatBackgrounds.darkening();
         Path file = configFile();
@@ -183,6 +201,7 @@ public final class ChatPanelManager {
             ChatPosition.x = Integer.parseInt(p.getProperty("x", Integer.toString(ChatPosition.x)));
             ChatPosition.y = Integer.parseInt(p.getProperty("y", Integer.toString(ChatPosition.y)));
             baseBackground = p.getProperty("main.background", baseBackground);
+            baseStyle = normalizeStyle(p.getProperty("main.style", baseStyle));
             if (!"none".equals(baseBackground) && ChatBackgrounds.displayName(baseBackground).equals(baseBackground)) baseBackground = "none";
             basePalette = clamp(Integer.parseInt(p.getProperty("main.palette", Integer.toString(basePalette))), 0, ChatTheme.paletteCount() - 1);
             baseDarkening = clamp(Integer.parseInt(p.getProperty("main.darkening", Integer.toString(baseDarkening))), 0, 85);
@@ -198,6 +217,7 @@ public final class ChatPanelManager {
                 panel.width = clamp(Integer.parseInt(p.getProperty(prefix + "width", p.getProperty(legacy + "width", "260"))), MIN_WIDTH, 1200);
                 panel.height = clamp(Integer.parseInt(p.getProperty(prefix + "height", "180")), MIN_HEIGHT, 1000);
                 panel.background = p.getProperty(prefix + "background", ChatBackgrounds.selectedId());
+                panel.style = normalizeStyle(p.getProperty(prefix + "style", baseStyle));
                 if (!"none".equals(panel.background) && ChatBackgrounds.displayName(panel.background).equals(panel.background)) panel.background = "none";
                 panel.palette = clamp(Integer.parseInt(p.getProperty(prefix + "palette", Integer.toString(ChatTheme.index()))), 0, ChatTheme.paletteCount() - 1);
                 panel.darkening = clamp(Integer.parseInt(p.getProperty(prefix + "darkening", Integer.toString(ChatBackgrounds.darkening()))), 0, 85);
@@ -233,6 +253,7 @@ public final class ChatPanelManager {
             p.setProperty("x", Integer.toString(ChatPosition.x));
             p.setProperty("y", Integer.toString(ChatPosition.y));
             p.setProperty("main.background", baseBackground);
+            p.setProperty("main.style", baseStyle);
             p.setProperty("main.palette", Integer.toString(basePalette));
             p.setProperty("main.darkening", Integer.toString(baseDarkening));
             for (int i = 0; i < PANELS.size(); i++) {
@@ -244,6 +265,7 @@ public final class ChatPanelManager {
                 p.setProperty(prefix + "x", Integer.toString(panel.x));
                 p.setProperty(prefix + "y", Integer.toString(panel.y));
                 p.setProperty(prefix + "background", panel.background);
+                p.setProperty(prefix + "style", panel.style);
                 p.setProperty(prefix + "palette", Integer.toString(panel.palette));
                 p.setProperty(prefix + "darkening", Integer.toString(panel.darkening));
             }
@@ -413,8 +435,12 @@ public final class ChatPanelManager {
             int x = panel.x;
             int width = (int)Math.round(panel.width * scale);
             int top = headerY(panel, mc.getWindow().getScaledHeight());
-            context.fill(x, top, x + width, top + HEADER_HEIGHT, 0xE622272D);
-            context.fill(x, top, x + width, top + 2, ChatTheme.accent(panel.palette));
+            if (ChatExperienceSettings.rpgModeEnabled && "dark_system".equals(panel.style)) {
+                ChatRpgRenderer.renderHeader(context, x, top, width, HEADER_HEIGHT, panel.palette);
+            } else {
+                context.fill(x, top, x + width, top + HEADER_HEIGHT, 0xE622272D);
+                context.fill(x, top, x + width, top + 2, ChatTheme.accent(panel.palette));
+            }
             String title = "Чат " + (PANELS.indexOf(panel) + 2) + " · " + filterSummary(panel);
             String close = "×";
             context.fill(x + 3, top + 3, x + 24, top + HEADER_HEIGHT - 2, 0x90383E44);
@@ -603,5 +629,8 @@ public final class ChatPanelManager {
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+    private static String normalizeStyle(String value) {
+        return "classic".equalsIgnoreCase(value) ? "classic" : "dark_system";
     }
 }

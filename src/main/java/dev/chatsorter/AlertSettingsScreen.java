@@ -35,7 +35,10 @@ public final class AlertSettingsScreen extends Screen {
     private int historyBottom() { return height - 38; }
     private int settingsTop() { return 101; }
     private int settingsBottom() { return historyBottom() - 5; }
-    private int settingsContentHeight() { return selected == null ? 617 : 852; }
+    private int settingsContentHeight() {
+        if (!ChatExperienceSettings.rpgModeEnabled) return selected == null ? 617 : 852;
+        return selected == null ? 710 : 970;
+    }
     private int maxSettingsScroll() { return Math.max(0, settingsContentHeight() - Math.max(1, settingsBottom() - settingsTop())); }
     private int wordRows() { return Math.max(1, (listBottom() - listTop()) / 22); }
     private int historyRows() { return Math.max(1, (historyBottom() - historyTop() - 19) / 24); }
@@ -172,16 +175,23 @@ public final class AlertSettingsScreen extends Screen {
         button(c,"Очистить историю этого сервера",sx,oy+516,sw,22,mx,my);
         button(c,"Пользовательские фильтры Regex",sx,oy+543,sw,22,mx,my);
         button(c,"Управление стандартными фильтрами",sx,oy+570,sw,22,mx,my);
+        button(c,"Режим RPG: " + (ChatExperienceSettings.rpgModeEnabled ? "Вкл." : "Выкл."),sx,oy+597,sw,22,mx,my);
+        if (ChatExperienceSettings.rpgModeEnabled) {
+            button(c,"Свечение рамки: " + (ChatExperienceSettings.rpgGlowEnabled ? "Вкл." : "Выкл."),sx,oy+624,sw,22,mx,my);
+            button(c,"Анимация: " + (ChatExperienceSettings.rpgAnimationEnabled ? "Вкл." : "Выкл."),sx,oy+651,sw,22,mx,my);
+            button(c,"Частицы: " + (ChatExperienceSettings.rpgParticlesEnabled ? "Вкл." : "Выкл."),sx,oy+678,sw,22,mx,my);
+        }
         if(selected!=null) {
-            c.drawTextWithShadow(textRenderer,"Выбранное уведомление",sx,oy+602,ChatTheme.text());
-            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Время: "+selected.time(),sw),sx,oy+622,0xFFFFFFFF);
-            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Слово: "+selected.keyword(),sw),sx,oy+638,0xFFFFFFFF);
-            c.drawTextWithShadow(textRenderer,"Полное сообщение:",sx,oy+658,0xFFFFFFFF);
+            int detailOffset = ChatExperienceSettings.rpgModeEnabled ? 108 : 0;
+            c.drawTextWithShadow(textRenderer,"Выбранное уведомление",sx,oy+602+detailOffset,ChatTheme.text());
+            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Время: "+selected.time(),sw),sx,oy+622+detailOffset,0xFFFFFFFF);
+            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Слово: "+selected.keyword(),sw),sx,oy+638+detailOffset,0xFFFFFFFF);
+            c.drawTextWithShadow(textRenderer,"Полное сообщение:",sx,oy+658+detailOffset,0xFFFFFFFF);
             String msg=selected.message();
             int maxChars=Math.max(8,sw/6);
             for(int i=0;i<Math.min(12,(msg.length()+maxChars-1)/maxChars);i++) {
                 int start=i*maxChars;
-                c.drawTextWithShadow(textRenderer,msg.substring(start,Math.min(msg.length(),start+maxChars)),sx,oy+675+i*12,0xFFE2E5E2);
+                c.drawTextWithShadow(textRenderer,msg.substring(start,Math.min(msg.length(),start+maxChars)),sx,oy+675+detailOffset+i*12,0xFFE2E5E2);
             }
         }
         c.disableScissor();
@@ -360,6 +370,15 @@ public final class AlertSettingsScreen extends Screen {
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+570 && y<oy+592) {
                 client.setScreen(new StandardFiltersScreen(this)); return true;
+            }
+            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+597 && y<oy+619) {
+                ChatExperienceSettings.rpgModeEnabled=!ChatExperienceSettings.rpgModeEnabled; ChatExperienceSettings.save();
+                settingsScroll=Math.min(settingsScroll,maxSettingsScroll()); return true;
+            }
+            if(ChatExperienceSettings.rpgModeEnabled && y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw) {
+                if(y>=oy+624 && y<oy+646) { ChatExperienceSettings.rpgGlowEnabled=!ChatExperienceSettings.rpgGlowEnabled; ChatExperienceSettings.save(); return true; }
+                if(y>=oy+651 && y<oy+673) { ChatExperienceSettings.rpgAnimationEnabled=!ChatExperienceSettings.rpgAnimationEnabled; ChatExperienceSettings.save(); return true; }
+                if(y>=oy+678 && y<oy+700) { ChatExperienceSettings.rpgParticlesEnabled=!ChatExperienceSettings.rpgParticlesEnabled; ChatExperienceSettings.save(); return true; }
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<=sx+sw && y>=oy+23 && y<oy+38) {
                 draggingVolume=true;

@@ -13,7 +13,7 @@ public final class ChatBackgroundSettingsScreen extends Screen {
     private final Screen parent;
     private final int panelId;
     private int scroll;
-    private static final int TOP = 72;
+    private static final int TOP = 84;
     private static final int ROW_HEIGHT = 82;
     private static final int GAP = 8;
 
@@ -30,6 +30,11 @@ public final class ChatBackgroundSettingsScreen extends Screen {
     private String selectedBackground() { return panelId == -1 ? ChatBackgrounds.selectedId() : ChatPanelManager.background(panelId); }
     private int selectedPalette() { return panelId == -1 ? ChatTheme.index() : ChatPanelManager.palette(panelId); }
     private int selectedDarkening() { return panelId == -1 ? ChatBackgrounds.darkening() : ChatPanelManager.darkening(panelId); }
+    private String selectedStyle() { return ChatPanelManager.style(panelId == -1 ? ChatPanelManager.BASE_CHAT_ID : panelId); }
+    private void toggleStyle() {
+        int id = panelId == -1 ? ChatPanelManager.BASE_CHAT_ID : panelId;
+        ChatPanelManager.setStyle(id, "dark_system".equals(selectedStyle()) ? "classic" : "dark_system");
+    }
     private void selectBackground(String id) {
         if (panelId == -1) ChatBackgrounds.select(id); else ChatPanelManager.setBackground(panelId, id);
     }
@@ -86,6 +91,8 @@ public final class ChatBackgroundSettingsScreen extends Screen {
         context.drawCenteredTextWithShadow(textRenderer, "Фоны и оформление чата", width / 2, 12, 0xFFFFFFFF);
         context.drawCenteredTextWithShadow(textRenderer,
             "Выберите фотографию и подходящую палитру. Фоны Unsplash сохраняются в кэш.", width / 2, 32, 0xFFD1D6DC);
+        drawButton(context, "Стиль чата: " + ("dark_system".equals(selectedStyle()) ? "Тёмная система" : "Minecraft"),
+            Math.max(12, width / 2 - 120), 57, 240, 20, mouseX, mouseY, false);
 
         int left = 12;
         int colW = cardWidth();
@@ -142,6 +149,11 @@ public final class ChatBackgroundSettingsScreen extends Screen {
     @Override public boolean mouseClicked(Click click, boolean doubled) {
         if (click.button() == 0) {
             int mouseX = (int)click.x(), mouseY = (int)click.y();
+            int styleX = Math.max(12, width / 2 - 120);
+            if (mouseX >= styleX && mouseX < styleX + 240 && mouseY >= 57 && mouseY < 77) {
+                toggleStyle();
+                return true;
+            }
             if (mouseY >= TOP && mouseY < visibleBottom()) {
                 List<Card> cards = cards();
                 int colW = cardWidth();
