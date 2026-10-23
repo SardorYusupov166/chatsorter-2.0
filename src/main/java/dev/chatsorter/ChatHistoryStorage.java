@@ -66,6 +66,7 @@ public final class ChatHistoryStorage {
                     "Восстановлено из локальной истории", repeats,
                     true, sources, categories, json);
                 entry.componentJson = json;
+                entry.alertTriggered = booleanValue(o, "alertTriggered", false);
                 loaded.add(entry);
             }
         } catch (Exception e) {
@@ -95,7 +96,7 @@ public final class ChatHistoryStorage {
             snapshot.add(new HistoryRowSnapshot(entry.id, entry.serverId, entry.sessionId, entry.receivedAt,
                 entry.senderId, entry.time, entry.tab.name(), entry.sender, entry.repeats, entry.message,
                 sources.isEmpty() ? entry.message.getString() : sources.get(0).rawText(),
-                entry.componentJson, entry.categories, List.copyOf(sources)));
+                entry.componentJson, entry.categories, entry.alertTriggered, List.copyOf(sources)));
         }
 
         CompletableFuture<Void> saved = new CompletableFuture<>();
@@ -129,6 +130,7 @@ public final class ChatHistoryStorage {
             o.addProperty("tab", entry.tab());
             o.addProperty("sender", entry.sender());
             o.addProperty("repeats", entry.repeats());
+            o.addProperty("alertTriggered", entry.alertTriggered());
             o.addProperty("plain", entry.plain());
             o.addProperty("id", entry.id().toString());
             o.addProperty("serverId", entry.serverId());
@@ -253,6 +255,11 @@ public final class ChatHistoryStorage {
         catch (Exception ignored) { return fallback; }
     }
 
+    private static boolean booleanValue(JsonObject object, String key, boolean fallback) {
+        try { return object.has(key) ? object.get(key).getAsBoolean() : fallback; }
+        catch (Exception ignored) { return fallback; }
+    }
+
     private static int intValue(JsonObject object, String key, int fallback) {
         try { return object.has(key) ? object.get(key).getAsInt() : fallback; }
         catch (Exception ignored) { return fallback; }
@@ -291,7 +298,7 @@ public final class ChatHistoryStorage {
     private record HistoryRowSnapshot(UUID id, String serverId, String sessionId, Instant receivedAt,
                                       String senderId, String time, String tab, String sender, int repeats,
                                       Text message, String plain, String componentJson, Set<String> categories,
-                                      List<SourceSnapshot> sources) { }
+                                      boolean alertTriggered, List<SourceSnapshot> sources) { }
 
     private record SourceSnapshot(UUID id, String serverId, String sessionId, Instant receivedAt,
                                   String senderId, String senderName, String rawText, Text message,
