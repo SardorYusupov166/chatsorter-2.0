@@ -12,6 +12,7 @@ public final class ChatHologramLayoutTest {
     public static void main(String[] args) {
         cameraDirections();
         bodyTracking();
+        playerAnchoringRegression();
         behindCameraRegression();
         fittedLayouts();
         invalidInput();
@@ -43,6 +44,31 @@ public final class ChatHologramLayoutTest {
                 (float)Math.cos(Math.toRadians(yaw)));
             require(forward.distance(expected) < 0.00001, "Body orientation must ignore camera pitch and yaw");
         }
+    }
+
+    private static void playerAnchoringRegression() {
+        // Moving/orbiting the camera around a stationary avatar must not move
+        // the hologram's WORLD location (camera-relative coordinates do change).
+        Vector3f first = ChatHologramLayout.playerAnchor(
+            100, 64, -20, 100, 66, -24, 0, 1.8);
+        Vector3f second = ChatHologramLayout.playerAnchor(
+            100, 64, -20, 104, 67, -18, 0, 1.8);
+        require(first.add(100, 66, -24).distance(second.add(104, 67, -18)) < 0.0001,
+            "Camera movement must not move a player-anchored hologram");
+
+        Vector3f base = ChatHologramLayout.playerAnchor(0, 60, 0, 0, 60, 0, 0, 1.8);
+        Vector3f moved = ChatHologramLayout.playerAnchor(3, 60, -2, 0, 60, 0, 0, 1.8);
+        require(Math.abs((moved.x - base.x) - 3) < 0.0001
+                && Math.abs((moved.z - base.z) + 2) < 0.0001,
+            "Hologram must translate with the avatar");
+        require(Math.abs(base.y - 1.8) < 0.0001
+                && Math.abs(base.z - ChatHologramLayout.PLAYER_DISTANCE) < 0.0001,
+            "Hologram should be at player eye level, in front of the avatar");
+
+        Vector3f turned = ChatHologramLayout.playerAnchor(0, 60, 0, 0, 60, 0, 90, 1.8);
+        require(Math.abs(turned.x + ChatHologramLayout.PLAYER_DISTANCE) < 0.0001
+                && Math.abs(turned.z) < 0.0001,
+            "Hologram must rotate around the avatar, not the camera");
     }
 
     private static void behindCameraRegression() {
