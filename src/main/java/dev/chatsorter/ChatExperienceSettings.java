@@ -21,7 +21,7 @@ public final class ChatExperienceSettings {
     public static boolean rpgGlowEnabled = true;
     public static boolean rpgAnimationEnabled = true;
     public static boolean rpgParticlesEnabled = true;
-    /** Follow the camera pitch/yaw; when disabled, holograms follow the player's body yaw. */
+    /** Follow the player's look yaw; when disabled, follow body yaw. Position is always avatar-anchored. */
     public static boolean rpgFollowViewEnabled = true;
     /** 0=center, 1=left, 2=right, 3=above, 4=below. */
     public static int rpgPanelPosition = 0;
