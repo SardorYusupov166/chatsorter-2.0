@@ -10,6 +10,8 @@ import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.util.BufferAllocator;
+import net.minecraft.text.OrderedText;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.Text;
@@ -36,6 +38,9 @@ public final class ChatWorldRenderer {
     private static final int ROW_HEIGHT = 14;
     // An avatar-anchored panel is much closer than the old camera-relative panel.
     private static final float WORLD_SCALE = 0.0052F;
+    // END_MAIN is after vanilla's world buffers have been flushed.
+    private static final BufferAllocator HOLOGRAM_ALLOCATOR = new BufferAllocator(128 * 1024);
+    private static final VertexConsumerProvider.Immediate HOLOGRAM_CONSUMERS = VertexConsumerProvider.immediate(HOLOGRAM_ALLOCATOR);
     private static final long LOG_INTERVAL_NANOS = 5_000_000_000L;
     private static final Map<String, String> LAST_PHASES = new HashMap<>();
     private static final Map<String, Long> LAST_LOG_TIMES = new HashMap<>();
@@ -45,8 +50,9 @@ public final class ChatWorldRenderer {
     private ChatWorldRenderer() { }
 
     public static void register() {
-        WorldRenderEvents.BEFORE_TRANSLUCENT.register(ChatWorldRenderer::render);
-        LOGGER.info("[ChatSorter][RPG] Registered world render callback: WorldRenderEvents.BEFORE_TRANSLUCENT");
+        // Late pass: stained glass and water have already drawn to the framebuffer.
+        WorldRenderEvents.END_MAIN.register(ChatWorldRenderer::render);
+        LOGGER.info("[ChatSorter][RPG] Registered world render callback: WorldRenderEvents.END_MAIN");
     }
 
     public static boolean shouldHideScreenChat(ChatHud hud) {
@@ -119,11 +125,11 @@ public final class ChatWorldRenderer {
         Vector3f right = playerFacing.transform(new Vector3f(1.0F, 0.0F, 0.0F)).normalize();
         Vector3f up = new Vector3f(0.0F, 1.0F, 0.0F);
 
-        VertexConsumerProvider consumers = renderContext.consumers();
+        // Vanilla world buffers are no longer available at END_MAIN.
+        VertexConsumerProvider.Immediate consumers = HOLOGRAM_CONSUMERS;
         MatrixStack worldMatrices = renderContext.matrices();
-        if (consumers == null || worldMatrices == null) {
-            report("world", "missing-context", "world render context missing: consumers="
-                + className(consumers) + ", matrices=" + (worldMatrices != null), LOG_INTERVAL_NANOS);
+        if (worldMatrices == null) {
+            report("world", "missing-context", "world render matrix stack unavailable", LOG_INTERVAL_NANOS);
             return;
         }
         TextRenderer textRenderer = client.textRenderer;
@@ -154,7 +160,8 @@ public final class ChatWorldRenderer {
                 anchorX, anchorY, anchorZ, facing, tick, scale);
             SUBMITTED_CHATS.add(hud);
         }
-        // BEFORE_TRANSLUCENT leaves the shared consumers under the world renderer's normal flush.
+        // Flush before the world render pass finishes: otherwise the panel disappears.
+        consumers.draw();
         List<ChatHudLine.Visible> mainMessages = ((ChatHudAccess)client.inGameHud.getChatHud()).chatsorter$getVisibleMessages();
         report("world", SUBMITTED_CHATS.isEmpty() ? "outside-view" : "submitted",
             "world hologram vertices submitted (not a GPU visibility confirmation): callbacks=" + renderCallbacks
@@ -165,7 +172,7 @@ public final class ChatWorldRenderer {
             + ", cameraOffset=" + cameraPos.distanceTo(playerPos)
             + ", position=" + ChatExperienceSettings.rpgPanelPosition + ", scale=" + layout.scale()
             + ", fov=" + fov + ", aspect=" + aspect + ", mainVisibleRows=" + mainMessages.size()
-            + ", consumers=" + className(consumers) + ", event=BEFORE_TRANSLUCENT"
+            + ", consumers=" + className(consumers) + ", event=END_MAIN"
             + ", matrices=" + className(worldMatrices) + ", screen=" + client.currentScreen,
             LOG_INTERVAL_NANOS);
     }
@@ -281,10 +288,11 @@ public final class ChatWorldRenderer {
                 float rowY = messagesTop + line * ROW_HEIGHT;
                 if (messageIndex < visible.size()) {
                     ChatHudLine.Visible visibleLine = visible.get(messageIndex);
-                    String raw = orderedTextToString(visibleLine.content());
-                    String message = renderer.trimToWidth(raw, Math.max(1, width - 24));
+                    // ChatHud already provides wrapped, style-preserving lines.
+                    // Keep original colors, font glyphs, ranks and player head icons.
+                    OrderedText styledLine = visibleLine.content();
                     drawText(consumers, renderer, matrices, left + 12, rowY + 3,
-                        Text.literal(message).asOrderedText(), 0xFFE3E7F0);
+                        styledLine, 0xFFFFFFFF);
                 } else if (visible.isEmpty() && line == rows - 1) {
                     drawText(consumers, renderer, matrices, left + 12, rowY + 3,
                         Text.literal(renderer.trimToWidth("Нет новых сообщений", width - 24)).asOrderedText(), 0xFFAAB6C8);
@@ -326,15 +334,6 @@ public final class ChatWorldRenderer {
                                  float x, float y, net.minecraft.text.OrderedText text, int color) {
         renderer.draw(text, x, y, color, false, matrices.peek().getPositionMatrix(), consumers,
             TextRenderer.TextLayerType.SEE_THROUGH, 0, FULL_BRIGHT);
-    }
-
-    private static String orderedTextToString(net.minecraft.text.OrderedText orderedText) {
-        StringBuilder result = new StringBuilder();
-        orderedText.accept((index, style, codePoint) -> {
-            result.appendCodePoint(codePoint);
-            return true;
-        });
-        return result.toString();
     }
 
     private static int withAlpha(int color, int alpha) {
