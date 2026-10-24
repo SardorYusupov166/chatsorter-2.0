@@ -193,33 +193,34 @@ public final class ChatWorldRenderer {
 
         float left = -width / 2.0F;
         float top = -height / 2.0F;
-        int background = rpgStyle ? 0xD5080B18 : 0xC8000000;
-        int headerBackground = rpgStyle ? 0xF4101930 : 0xE022272D;
-        int frame = rpgStyle ? withAlpha(accent, 225) : 0xFFB9C0C8;
+        int background = rpgStyle ? 0xC9080B18 : 0xB8000000;
+        int headerBackground = rpgStyle ? 0xD4101930 : 0xC322272D;
 
-        // A broad, fixed-size floating panel follows the camera like an in-world
-        // Minecraft screen. The layered edges echo the inventory frame while
-        // the content remains the normal ChatSorter message stream.
+        // Dark, translucent system glass: the panel stays fixed in front of the
+        // camera, while its angular light frame and message rows keep the RPG HUD style.
         if (rpgStyle && ChatExperienceSettings.rpgGlowEnabled) {
             int pulse = ChatExperienceSettings.rpgAnimationEnabled
-                ? 18 + (int)((Math.sin(tick * 0.035) + 1.0) * 8.0) : 22;
+                ? 16 + (int)((Math.sin(tick * 0.035) + 1.0) * 8.0) : 20;
             submitBackground(consumers, renderer, matrices, left - 5, top - 5, width + 10, withAlpha(accent, pulse));
             submitBackground(consumers, renderer, matrices, left - 2, top - 2, width + 4, withAlpha(0xFF8BDFFF, pulse / 2));
         }
-        submitBackground(consumers, renderer, matrices, left - 2, top - 2, width + 4, withAlpha(0xFF000000, 165));
-        submitBackground(consumers, renderer, matrices, left, top, width, frame);
-        submitBackground(consumers, renderer, matrices, left + 2, top + 2, width - 4, background);
-        submitBackground(consumers, renderer, matrices, left + 5, top + 5, width - 10, headerBackground);
-        submitBackground(consumers, renderer, matrices, left + 5, top + HEADER_HEIGHT - 2, width - 10, 2, withAlpha(accent, 220));
-        submitBackground(consumers, renderer, matrices, left + 2, top + 2, width - 4, 1, 0xFFE8F0FA);
-        submitBackground(consumers, renderer, matrices, left + 2, top + 2, 1, height - 4, 0xFFE8F0FA);
-        submitBackground(consumers, renderer, matrices, left + width - 3, top + 3, 1, height - 6, 0xA8000000);
-        submitBackground(consumers, renderer, matrices, left + 3, top + height - 3, width - 6, 1, 0xA8000000);
+        submitBackground(consumers, renderer, matrices, left, top, width, background);
+        submitBackground(consumers, renderer, matrices, left + 2, top + 2, width - 4, withAlpha(accent, 200));
+        submitBackground(consumers, renderer, matrices, left + 3, top + 3, width - 6, background);
+        submitBackground(consumers, renderer, matrices, left + 7, top + 5, width - 14, headerBackground);
+        submitBackground(consumers, renderer, matrices, left + 7, top + HEADER_HEIGHT - 2, width - 14, 2, withAlpha(accent, 205));
+        submitBackground(consumers, renderer, matrices, left + 1, top + 7, 2, 15, withAlpha(0xFF9BE8FF, 235));
+        submitBackground(consumers, renderer, matrices, left + width - 3, top + 7, 2, 15, withAlpha(0xFF9BE8FF, 235));
+        submitBackground(consumers, renderer, matrices, left + 7, top + height - 3, width - 14, 1, withAlpha(accent, 210));
+        drawCorner(consumers, renderer, matrices, left + 2, top + 2, 1, 1, accent);
+        drawCorner(consumers, renderer, matrices, left + width - 2, top + 2, -1, 1, accent);
+        drawCorner(consumers, renderer, matrices, left + 2, top + height - 2, 1, -1, accent);
+        drawCorner(consumers, renderer, matrices, left + width - 2, top + height - 2, -1, -1, accent);
 
         String title = rpgStyle ? "◈ СИСТЕМА  /  ЧАТ " + (index + 1) : "ЧАТ " + (index + 1);
         drawText(consumers, renderer, matrices, left + 10, top + 6, Text.literal(title).asOrderedText(), 0xFFDCEBFF, 0);
-        String subtitle = "ПОСЛЕДНИЕ СООБЩЕНИЯ";
-        drawText(consumers, renderer, matrices, left + 10, top + 17, Text.literal(subtitle).asOrderedText(), withAlpha(accent, 230), 0);
+        drawText(consumers, renderer, matrices, left + 10, top + 17,
+            Text.literal("КАНАЛ СООБЩЕНИЙ").asOrderedText(), withAlpha(accent, 230), 0);
 
         float messagesTop = top + HEADER_HEIGHT + 2;
         for (int line = 0; line < rows; line++) {
