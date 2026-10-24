@@ -28,7 +28,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatSorter implements ClientModInitializer {
-    public static final String VERSION = "2.0.0-alpha.13";
+    public static final String VERSION = "2.0.0-alpha.14";
     private static final int MAX_CHAT_HISTORY = 16_384;
     private static final DateTimeFormatter MESSAGE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     public static int maxChatHistory() { return MAX_CHAT_HISTORY; }
@@ -224,6 +224,9 @@ public class ChatSorter implements ClientModInitializer {
                 ChatBookmarks.load(activeServerKey);
                 refreshChat();
                 client.inGameHud.getChatHud().addMessage(Text.literal("[ChatSorter] Мод успешно загружен!").styled(style -> style.withColor(0x55FF55)));
+                client.inGameHud.getChatHud().addMessage(Text.literal("[ChatSorter] Режим RPG: "
+                    + (ChatExperienceSettings.rpgModeEnabled ? "ВКЛ — мировые голограммы активны" : "ВЫКЛ — включите в настройках уведомлений → настройках чата"))
+                    .styled(style -> style.withColor(ChatExperienceSettings.rpgModeEnabled ? 0xFF9BE8FF : 0xFFFFC56B)));
                 client.inGameHud.getChatHud().addMessage(Text.literal("Автор: ").styled(style -> style.withColor(0xFFCC55))
                     .append(Text.literal("mlpgod").styled(style -> style.withColor(0xFFFFFF))));
                 client.inGameHud.getChatHud().addMessage(Text.literal("Сервер: ").styled(style -> style.withColor(0xFFCC55))
