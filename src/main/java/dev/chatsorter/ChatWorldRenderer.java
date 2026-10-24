@@ -89,9 +89,12 @@ public final class ChatWorldRenderer {
         if (chats.isEmpty()) return;
 
         Camera camera = client.gameRenderer.getCamera();
-        Quaternionf facing = camera.getRotation();
+        Quaternionf facing = ChatExperienceSettings.rpgFollowViewEnabled
+            ? camera.getRotation()
+            : new Quaternionf().rotationY((float)Math.toRadians(-player.getYaw()));
         Vector3f forward = facing.transform(new Vector3f(0.0F, 0.0F, 1.0F)).normalize();
         Vector3f right = facing.transform(new Vector3f(1.0F, 0.0F, 0.0F)).normalize();
+        Vector3f up = facing.transform(new Vector3f(0.0F, 1.0F, 0.0F)).normalize();
         double originX = forward.x * HOLOGRAM_DISTANCE;
         double originY = forward.y * HOLOGRAM_DISTANCE;
         double originZ = forward.z * HOLOGRAM_DISTANCE;
@@ -114,13 +117,23 @@ public final class ChatWorldRenderer {
             float scale = worldScale(client) * (chats.size() == 1 ? 1.0F : 0.55F);
             // A single chat belongs in the centre of the player's view. With
             // multiple chats, fan them out symmetrically in the player's plane.
-            double side = chats.size() == 1 ? 0.0
-                : (width * scale * 0.5 + 0.08) * (column == 0 ? -1 : 1);
             double floatingPanelHeight = (HEADER_HEIGHT + MAX_WORLD_ROWS * ROW_HEIGHT) * scale;
-            double lift = -row * (floatingPanelHeight + 0.08);
-            double anchorX = originX + right.x * side;
-            double anchorY = originY + lift;
-            double anchorZ = originZ + right.z * side;
+            double presetSide = switch (ChatExperienceSettings.clampRpgPanelPosition(ChatExperienceSettings.rpgPanelPosition)) {
+                case 1 -> -width * scale * 0.60;
+                case 2 -> width * scale * 0.60;
+                default -> 0.0;
+            };
+            double presetLift = switch (ChatExperienceSettings.clampRpgPanelPosition(ChatExperienceSettings.rpgPanelPosition)) {
+                case 3 -> floatingPanelHeight * 0.60;
+                case 4 -> -floatingPanelHeight * 0.60;
+                default -> 0.0;
+            };
+            double side = presetSide + (chats.size() == 1 ? 0.0
+                : (width * scale * 0.5 + 0.08) * (column == 0 ? -1 : 1));
+            double lift = presetLift - row * (floatingPanelHeight + 0.08);
+            double anchorX = originX + right.x * side + up.x * lift;
+            double anchorY = originY + right.y * side + up.y * lift;
+            double anchorZ = originZ + right.z * side + up.z * lift;
             drawChat(consumers, textRenderer, worldMatrices, hud, i, width,
                 anchorX, anchorY, anchorZ, facing, tick, scale);
         }
