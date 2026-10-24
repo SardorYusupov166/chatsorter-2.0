@@ -12,6 +12,7 @@ public final class ChatHologramLayoutTest {
     public static void main(String[] args) {
         cameraDirections();
         bodyTracking();
+        thirdPersonOrientationRegression();
         playerAnchoringRegression();
         hudFallbackRegression();
         behindCameraRegression();
@@ -44,6 +45,26 @@ public final class ChatHologramLayoutTest {
             Vector3f expected = new Vector3f((float)-Math.sin(Math.toRadians(yaw)), 0,
                 (float)Math.cos(Math.toRadians(yaw)));
             require(forward.distance(expected) < 0.00001, "Body orientation must ignore camera pitch and yaw");
+        }
+    }
+
+    private static void thirdPersonOrientationRegression() {
+        // A third-person camera can orbit, tilt or look at the avatar from
+        // either side without rotating the world-anchored chat hologram.
+        for (float playerYaw : new float[]{0, 45, 90, 180, 270}) {
+            Quaternionf avatarFacing = ChatHologramLayout.playerFacing(playerYaw);
+            Vector3f expectedForward = ChatHologramLayout.forward(avatarFacing);
+            for (float cameraYaw : new float[]{0, 90, 180, 270}) {
+                for (float cameraPitch : new float[]{-65, 0, 65}) {
+                    Quaternionf cameraFacing = camera(cameraYaw, cameraPitch);
+                    Quaternionf result = ChatHologramLayout.facing(cameraFacing, playerYaw, false);
+                    require(ChatHologramLayout.forward(result).distance(expectedForward) < 0.00001,
+                        "Camera orbit must not rotate the avatar-facing hologram");
+                    Vector3f readableNormal = result.transform(new Vector3f(0, 0, 1));
+                    require(readableNormal.dot(expectedForward) < -0.99999,
+                        "Readable front face must point back toward the avatar");
+                }
+            }
         }
     }
 
