@@ -13,6 +13,7 @@ public final class ChatHologramLayoutTest {
         cameraDirections();
         bodyTracking();
         playerAnchoringRegression();
+        hudFallbackRegression();
         behindCameraRegression();
         fittedLayouts();
         invalidInput();
@@ -69,6 +70,22 @@ public final class ChatHologramLayoutTest {
         require(Math.abs(turned.x + ChatHologramLayout.PLAYER_DISTANCE) < 0.0001
                 && Math.abs(turned.z) < 0.0001,
             "Hologram must rotate around the avatar, not the camera");
+    }
+
+    private static void hudFallbackRegression() {
+        // The HUD must not come back when the hologram is outside the frustum.
+        boolean active = ChatHologramLayout.hideVanillaChat(true, true, true, true, true);
+        require(active, "RPG mode must always hide vanilla HUD while world gameplay is active");
+        require(!ChatHologramLayout.hideVanillaChat(false, true, true, true, true),
+            "Vanilla HUD must be restored when RPG mode is disabled");
+        require(!ChatHologramLayout.hideVanillaChat(true, true, true, true, false),
+            "Vanilla HUD must be available in chat and other screens");
+        require(!ChatHologramLayout.hideVanillaChat(true, false, true, true, true),
+            "No player should not enable RPG HUD suppression");
+        require(!ChatHologramLayout.hideVanillaChat(true, true, false, true, true),
+            "No world should not enable RPG HUD suppression");
+        require(!ChatHologramLayout.hideVanillaChat(true, true, true, false, true),
+            "Hidden HUD should not require suppression");
     }
 
     private static void behindCameraRegression() {
