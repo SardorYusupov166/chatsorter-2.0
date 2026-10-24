@@ -13,6 +13,7 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
@@ -110,14 +111,22 @@ public final class ChatWorldRenderer {
 
         Camera camera = client.gameRenderer.getCamera();
         Quaternionf cameraFacing = new Quaternionf(camera.getRotation());
-        Quaternionf facing = ChatHologramLayout.facing(cameraFacing, player.getBodyYaw(),
-            ChatExperienceSettings.rpgFollowViewEnabled);
-        Vector3f forward = ChatHologramLayout.forward(facing);
-        Vector3f right = facing.transform(new Vector3f(1.0F, 0.0F, 0.0F)).normalize();
-        Vector3f up = facing.transform(new Vector3f(0.0F, 1.0F, 0.0F)).normalize();
-        double originX = forward.x * ChatHologramLayout.DISTANCE;
-        double originY = forward.y * ChatHologramLayout.DISTANCE;
-        double originZ = forward.z * ChatHologramLayout.DISTANCE;
+        // Anchor the hologram to the PLAYER, never to the third-person camera.
+        // Follow-view tracks the player's interpolated look yaw, not camera position.
+        float tickDelta = client.getRenderTickCounter().getTickDelta(true);
+        float playerYaw = ChatExperienceSettings.rpgFollowViewEnabled
+            ? player.getLerpedYaw(tickDelta) : player.getBodyYaw();
+        Quaternionf playerFacing = ChatHologramLayout.facing(cameraFacing, playerYaw, false);
+        Vec3d playerPos = player.getLerpedPos(tickDelta);
+        Vec3d cameraPos = camera.getPos();
+        Vector3f origin = ChatHologramLayout.playerAnchor(
+            playerPos.x, playerPos.y, playerPos.z,
+            cameraPos.x, cameraPos.y, cameraPos.z,
+            playerYaw, player.getEyeY() - player.getY() + 0.25);
+        // Screen-facing billboard affects readability only, not world placement.
+        Quaternionf facing = cameraFacing;
+        Vector3f right = playerFacing.transform(new Vector3f(1.0F, 0.0F, 0.0F)).normalize();
+        Vector3f up = new Vector3f(0.0F, 1.0F, 0.0F);
 
         VertexConsumerProvider consumers = renderContext.consumers();
         MatrixStack worldMatrices = renderContext.matrices();
@@ -143,9 +152,9 @@ public final class ChatWorldRenderer {
             float scale = layout.scale();
             double side = layout.side(i);
             double lift = layout.lift(i);
-            double anchorX = originX + right.x * side + up.x * lift;
-            double anchorY = originY + right.y * side + up.y * lift;
-            double anchorZ = originZ + right.z * side + up.z * lift;
+            double anchorX = origin.x + right.x * side + up.x * lift;
+            double anchorY = origin.y + right.y * side + up.y * lift;
+            double anchorZ = origin.z + right.z * side + up.z * lift;
             Vector3f center = new Vector3f((float)anchorX, (float)anchorY, (float)anchorZ);
             if (i == 0) primaryDepth = center.dot(ChatHologramLayout.forward(cameraFacing));
             if (!ChatHologramLayout.inView(cameraFacing, facing, center, width,
@@ -165,6 +174,8 @@ public final class ChatWorldRenderer {
             + ", version=" + ChatSorter.VERSION + ", chats=" + chats.size()
             + ", inView=" + SUBMITTED_CHATS.size() + ", primaryDepth=" + primaryDepth
             + ", followView=" + ChatExperienceSettings.rpgFollowViewEnabled
+            + ", anchor=player, playerYaw=" + playerYaw
+            + ", cameraOffset=" + cameraPos.distanceTo(playerPos)
             + ", position=" + ChatExperienceSettings.rpgPanelPosition + ", scale=" + layout.scale()
             + ", fov=" + fov + ", aspect=" + aspect + ", mainVisibleRows=" + mainMessages.size()
             + ", consumers=" + className(consumers) + ", event=BEFORE_TRANSLUCENT"
