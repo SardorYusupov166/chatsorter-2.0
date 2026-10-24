@@ -23,6 +23,7 @@ public final class AlertSettingsScreen extends Screen {
     private List<NotificationHistory.Entry> history = List.of();
     private NotificationHistory.Entry selected;
     private static final int DARK = 0xD625282D, PANEL = 0xB52A2E33;
+    private static final String[] RPG_PANEL_POSITIONS = {"По центру", "Слева", "Справа", "Сверху", "Снизу"};
     private static int green(){return ChatTheme.accent();}
     public AlertSettingsScreen(Screen parent) { super(Text.literal("ChatSorter — Уведомления")); this.parent = parent; }
     private int leftX() { return 12; }
@@ -37,7 +38,7 @@ public final class AlertSettingsScreen extends Screen {
     private int settingsBottom() { return historyBottom() - 5; }
     private int settingsContentHeight() {
         if (!ChatExperienceSettings.rpgModeEnabled) return selected == null ? 617 : 852;
-        return selected == null ? 710 : 970;
+        return selected == null ? 764 : 1024;
     }
     private int maxSettingsScroll() { return Math.max(0, settingsContentHeight() - Math.max(1, settingsBottom() - settingsTop())); }
     private int wordRows() { return Math.max(1, (listBottom() - listTop()) / 22); }
@@ -180,9 +181,11 @@ public final class AlertSettingsScreen extends Screen {
             button(c,"Свечение рамки: " + (ChatExperienceSettings.rpgGlowEnabled ? "Вкл." : "Выкл."),sx,oy+624,sw,22,mx,my);
             button(c,"Анимация: " + (ChatExperienceSettings.rpgAnimationEnabled ? "Вкл." : "Выкл."),sx,oy+651,sw,22,mx,my);
             button(c,"Частицы: " + (ChatExperienceSettings.rpgParticlesEnabled ? "Вкл." : "Выкл."),sx,oy+678,sw,22,mx,my);
+            button(c,"Следовать за взглядом: " + (ChatExperienceSettings.rpgFollowViewEnabled ? "Вкл." : "Выкл."),sx,oy+705,sw,22,mx,my);
+            button(c,"Положение окна: " + RPG_PANEL_POSITIONS[ChatExperienceSettings.clampRpgPanelPosition(ChatExperienceSettings.rpgPanelPosition)],sx,oy+732,sw,22,mx,my);
         }
         if(selected!=null) {
-            int detailOffset = ChatExperienceSettings.rpgModeEnabled ? 108 : 0;
+            int detailOffset = ChatExperienceSettings.rpgModeEnabled ? 162 : 0;
             c.drawTextWithShadow(textRenderer,"Выбранное уведомление",sx,oy+602+detailOffset,ChatTheme.text());
             c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Время: "+selected.time(),sw),sx,oy+622+detailOffset,0xFFFFFFFF);
             c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Слово: "+selected.keyword(),sw),sx,oy+638+detailOffset,0xFFFFFFFF);
@@ -379,6 +382,8 @@ public final class AlertSettingsScreen extends Screen {
                 if(y>=oy+624 && y<oy+646) { ChatExperienceSettings.rpgGlowEnabled=!ChatExperienceSettings.rpgGlowEnabled; ChatExperienceSettings.save(); return true; }
                 if(y>=oy+651 && y<oy+673) { ChatExperienceSettings.rpgAnimationEnabled=!ChatExperienceSettings.rpgAnimationEnabled; ChatExperienceSettings.save(); return true; }
                 if(y>=oy+678 && y<oy+700) { ChatExperienceSettings.rpgParticlesEnabled=!ChatExperienceSettings.rpgParticlesEnabled; ChatExperienceSettings.save(); return true; }
+                if(y>=oy+705 && y<oy+727) { ChatExperienceSettings.rpgFollowViewEnabled=!ChatExperienceSettings.rpgFollowViewEnabled; ChatExperienceSettings.save(); return true; }
+                if(y>=oy+732 && y<oy+754) { ChatExperienceSettings.rpgPanelPosition=(ChatExperienceSettings.clampRpgPanelPosition(ChatExperienceSettings.rpgPanelPosition)+1)%RPG_PANEL_POSITIONS.length; ChatExperienceSettings.save(); return true; }
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<=sx+sw && y>=oy+23 && y<oy+38) {
                 draggingVolume=true;
