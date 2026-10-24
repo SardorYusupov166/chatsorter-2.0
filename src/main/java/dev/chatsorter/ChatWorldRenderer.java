@@ -116,7 +116,8 @@ public final class ChatWorldRenderer {
             // multiple chats, fan them out symmetrically in the player's plane.
             double side = chats.size() == 1 ? 0.0
                 : (width * scale * 0.5 + 0.08) * (column == 0 ? -1 : 1);
-            double lift = -row * (Math.min(height, 180) * scale + 0.08);
+            double floatingPanelHeight = (HEADER_HEIGHT + MAX_WORLD_ROWS * ROW_HEIGHT) * scale;
+            double lift = -row * (floatingPanelHeight + 0.08);
             double anchorX = originX + right.x * side;
             double anchorY = originY + lift;
             double anchorZ = originZ + right.z * side;
