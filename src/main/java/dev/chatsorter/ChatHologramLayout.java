@@ -7,12 +7,18 @@ import org.joml.Vector3fc;
 
 /** Camera-relative geometry, kept independent of Minecraft for regression tests. */
 final class ChatHologramLayout {
-    static final double DISTANCE = 2.2; // Reference distance for panel sizing / FOV fitting.
-    static final double PLAYER_DISTANCE = 1.65; // World blocks in front of the avatar.
+    static final double PLAYER_DISTANCE = 1.85; // World blocks in front of the avatar.
+    static final double DISTANCE = PLAYER_DISTANCE; // Match layout fitting to the world anchor.
     private static final double VIEW_MARGIN = 0.88;
     private static final int CELL_PADDING = 24;
 
     private ChatHologramLayout() { }
+
+    /** Off-screen holograms must never enable the ordinary HUD chat. */
+    static boolean hideVanillaChat(boolean rpgEnabled, boolean playerPresent,
+                                   boolean worldPresent, boolean hudVisible, boolean noScreen) {
+        return rpgEnabled && playerPresent && worldPresent && hudVisible && noScreen;
+    }
 
     static Quaternionf facing(Quaternionfc cameraRotation, float bodyYaw, boolean followView) {
         if (followView || !Float.isFinite(bodyYaw)) return new Quaternionf(cameraRotation);
