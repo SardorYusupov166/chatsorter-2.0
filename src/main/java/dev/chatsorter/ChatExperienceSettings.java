@@ -21,6 +21,10 @@ public final class ChatExperienceSettings {
     public static boolean rpgGlowEnabled = true;
     public static boolean rpgAnimationEnabled = true;
     public static boolean rpgParticlesEnabled = true;
+    /** Follow the camera pitch/yaw; when disabled, holograms follow the player's body yaw. */
+    public static boolean rpgFollowViewEnabled = true;
+    /** 0=center, 1=left, 2=right, 3=above, 4=below. */
+    public static int rpgPanelPosition = 0;
     public static final Set<String> hiddenStandardFilters = new LinkedHashSet<>();
 
     public static void load() {
@@ -36,6 +40,8 @@ public final class ChatExperienceSettings {
             rpgGlowEnabled = Boolean.parseBoolean(p.getProperty("rpgGlowEnabled", "true"));
             rpgAnimationEnabled = Boolean.parseBoolean(p.getProperty("rpgAnimationEnabled", "true"));
             rpgParticlesEnabled = Boolean.parseBoolean(p.getProperty("rpgParticlesEnabled", "true"));
+            rpgFollowViewEnabled = Boolean.parseBoolean(p.getProperty("rpgFollowViewEnabled", "true"));
+            rpgPanelPosition = clampRpgPanelPosition(Integer.parseInt(p.getProperty("rpgPanelPosition", "0")));
             hiddenStandardFilters.clear();
             for (String key : p.getProperty("hiddenStandardFilters", "").split(",")) {
                 if (!key.isBlank()) hiddenStandardFilters.add(key.strip());
@@ -55,12 +61,15 @@ public final class ChatExperienceSettings {
             p.setProperty("rpgGlowEnabled", Boolean.toString(rpgGlowEnabled));
             p.setProperty("rpgAnimationEnabled", Boolean.toString(rpgAnimationEnabled));
             p.setProperty("rpgParticlesEnabled", Boolean.toString(rpgParticlesEnabled));
+            p.setProperty("rpgFollowViewEnabled", Boolean.toString(rpgFollowViewEnabled));
+            p.setProperty("rpgPanelPosition", Integer.toString(clampRpgPanelPosition(rpgPanelPosition)));
             p.setProperty("hiddenStandardFilters", String.join(",", hiddenStandardFilters));
             try (var out = Files.newOutputStream(FILE)) { p.store(out, "ChatSorter chat experience"); }
         } catch (Exception e) { System.err.println("[ChatSorter] Could not save experience settings: " + e.getMessage()); }
     }
     public static int clamp(int value) { return Math.max(50, Math.min(16_384, value)); }
     public static int clampDisplayLimit(int value) { return Math.max(100, Math.min(5_000, value)); }
+    public static int clampRpgPanelPosition(int value) { return Math.max(0, Math.min(4, value)); }
     public static boolean standardFilterVisible(String key) { return !hiddenStandardFilters.contains(key); }
     public static void setStandardFilterVisible(String key, boolean visible) {
         if (key == null || key.isBlank()) return;
