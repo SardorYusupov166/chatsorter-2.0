@@ -8,6 +8,7 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.RenderLayers;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
@@ -229,95 +230,104 @@ public final class ChatWorldRenderer {
             int background = rpgStyle ? 0xC9080B18 : 0xB8000000;
             int headerBackground = rpgStyle ? 0xD4101930 : 0xC322272D;
 
-            // Dark, translucent system glass: the panel stays fixed in front of the
-            // camera, while its angular light frame and message rows keep the RPG HUD style.
+            // Keep the glass, header and rows disjoint: the shared translucent
+            // layer sorts quads by distance, not by our submission order.
             if (rpgStyle && ChatExperienceSettings.rpgGlowEnabled) {
                 int pulse = ChatExperienceSettings.rpgAnimationEnabled
-                    ? 16 + (int)((Math.sin(tick * 0.035) + 1.0) * 8.0) : 20;
-                submitBackground(consumers, renderer, matrices, left - 5, top - 5, width + 10, withAlpha(accent, pulse));
-                submitBackground(consumers, renderer, matrices, left - 2, top - 2, width + 4, withAlpha(0xFF8BDFFF, pulse / 2));
+                    ? 32 + (int)((Math.sin(tick * 0.035) + 1.0) * 8.0) : 40;
+                // Vanilla's text-background shader discards alpha below 0.1.
+                drawBorder(consumers, matrices, left - 5, top - 5, width + 10, height + 10, 3,
+                    withAlpha(accent, pulse));
+                drawBorder(consumers, matrices, left - 2, top - 2, width + 4, height + 4, 2,
+                    withAlpha(0xFF8BDFFF, 32));
             }
-            submitBackground(consumers, renderer, matrices, left, top, width, background);
-            submitBackground(consumers, renderer, matrices, left + 2, top + 2, width - 4, withAlpha(accent, 200));
-            submitBackground(consumers, renderer, matrices, left + 3, top + 3, width - 6, background);
-            submitBackground(consumers, renderer, matrices, left + 7, top + 5, width - 14, headerBackground);
-            submitBackground(consumers, renderer, matrices, left + 7, top + HEADER_HEIGHT - 2, width - 14, 2, withAlpha(accent, 205));
-            submitBackground(consumers, renderer, matrices, left + 1, top + 7, 2, 15, withAlpha(0xFF9BE8FF, 235));
-            submitBackground(consumers, renderer, matrices, left + width - 3, top + 7, 2, 15, withAlpha(0xFF9BE8FF, 235));
-            submitBackground(consumers, renderer, matrices, left + 7, top + height - 3, width - 14, 1, withAlpha(accent, 210));
-            drawCorner(consumers, renderer, matrices, left + 2, top + 2, 1, 1, accent);
-            drawCorner(consumers, renderer, matrices, left + width - 2, top + 2, -1, 1, accent);
-            drawCorner(consumers, renderer, matrices, left + 2, top + height - 2, 1, -1, accent);
-            drawCorner(consumers, renderer, matrices, left + width - 2, top + height - 2, -1, -1, accent);
-
-            String title = rpgStyle ? "◈ СИСТЕМА  /  ЧАТ " + (index + 1) : "ЧАТ " + (index + 1);
-            drawText(consumers, renderer, matrices, left + 10, top + 6, Text.literal(title).asOrderedText(), 0xFFDCEBFF, 0);
-            drawText(consumers, renderer, matrices, left + 10, top + 17,
-                Text.literal("КАНАЛ СООБЩЕНИЙ").asOrderedText(), withAlpha(accent, 230), 0);
-
-            float messagesTop = top + HEADER_HEIGHT + 2;
+            drawBorder(consumers, matrices, left, top, width, height, 1, withAlpha(accent, 210));
+            submitBackground(consumers, matrices, left + 1, top + 1, width - 2, HEADER_HEIGHT - 3, headerBackground);
+            submitBackground(consumers, matrices, left + 1, top + HEADER_HEIGHT - 2, width - 2, 2, withAlpha(accent, 205));
             for (int line = 0; line < rows; line++) {
-                int messageIndex = rows - line - 1;
-                float rowY = messagesTop + line * ROW_HEIGHT;
-                int rowColor = (line & 1) == 0 ? 0x40151A28 : 0x3020142C;
-                submitBackground(consumers, renderer, matrices, left + 5, rowY, width - 10, ROW_HEIGHT - 1, rowColor);
-                if (messageIndex < visible.size()) {
-                    ChatHudLine.Visible visibleLine = visible.get(messageIndex);
-                    String raw = orderedTextToString(visibleLine.content());
-                    String message = renderer.trimToWidth(raw, Math.max(1, width - 24));
-                    drawText(consumers, renderer, matrices, left + 12, rowY + 3, Text.literal(message).asOrderedText(), 0xFFE3E7F0, 0);
-                } else if (visible.isEmpty() && line == rows - 1) {
-                    drawText(consumers, renderer, matrices, left + 12, rowY + 3,
-                        Text.literal("Нет новых сообщений").asOrderedText(), 0xFFAAB6C8, 0);
+                float rowY = top + HEADER_HEIGHT + line * ROW_HEIGHT;
+                int rowColor = !rpgStyle ? background : (line & 1) == 0 ? 0xC9101526 : 0xC9131022;
+                submitBackground(consumers, matrices, left + 1, rowY, width - 2, ROW_HEIGHT - 1, rowColor);
+                if (line < rows - 1) {
+                    submitBackground(consumers, matrices, left + 1, rowY + ROW_HEIGHT - 1, width - 2, 1, background);
                 }
             }
+            drawCorner(consumers, matrices, left + 2, top + 2, 1, 1, accent);
+            drawCorner(consumers, matrices, left + width - 2, top + 2, -1, 1, accent);
+            drawCorner(consumers, matrices, left + 2, top + height - 2, 1, -1, accent);
+            drawCorner(consumers, matrices, left + width - 2, top + height - 2, -1, -1, accent);
 
             if (rpgStyle && ChatExperienceSettings.rpgParticlesEnabled) {
                 double phase = tick * 0.045 + index * 1.7;
                 float particleX = (float)(left + 14 + (width - 28) * ((Math.sin(phase) + 1.0) * 0.5));
-                submitBackground(consumers, renderer, matrices, particleX, top - 2, 3, 3, 0xD09BE8FF);
-                submitBackground(consumers, renderer, matrices, left + width - 3, top + height - 7, 2, 2, 0xC09D82FF);
+                submitBackground(consumers, matrices, particleX, top - 3, 3, 3, 0xD09BE8FF);
+                submitBackground(consumers, matrices, left + width, top + height - 7, 2, 2, 0xC09D82FF);
             }
             if (rpgStyle && ChatExperienceSettings.rpgAnimationEnabled) {
-                int scanY = (int)(Math.floorMod(tick + index * 19, Math.max(1, height - 21)));
-                submitBackground(consumers, renderer, matrices, left + 9, top + 16 + scanY, width - 18, 0x129BE8FF);
+                int scanY = Math.floorMod(tick + index * 19, rows * ROW_HEIGHT - 12);
+                // Keep moving effects in the margin, clear of message glyphs.
+                submitBackground(consumers, matrices, left + 2, top + HEADER_HEIGHT + scanY, 1, 10, 0x609BE8FF);
+            }
+
+            // Submit every piece of decoration before text, so a later background
+            // batch cannot paint over glyphs when the font atlas changes.
+            String title = rpgStyle ? "◈ СИСТЕМА  /  ЧАТ " + (index + 1) : "ЧАТ " + (index + 1);
+            drawText(consumers, renderer, matrices, left + 10, top + 6,
+                Text.literal(renderer.trimToWidth(title, width - 20)).asOrderedText(), 0xFFDCEBFF);
+            drawText(consumers, renderer, matrices, left + 10, top + 17,
+                Text.literal(renderer.trimToWidth("КАНАЛ СООБЩЕНИЙ", width - 20)).asOrderedText(), withAlpha(accent, 230));
+
+            float messagesTop = top + HEADER_HEIGHT;
+            for (int line = 0; line < rows; line++) {
+                int messageIndex = rows - line - 1;
+                float rowY = messagesTop + line * ROW_HEIGHT;
+                if (messageIndex < visible.size()) {
+                    ChatHudLine.Visible visibleLine = visible.get(messageIndex);
+                    String raw = orderedTextToString(visibleLine.content());
+                    String message = renderer.trimToWidth(raw, Math.max(1, width - 24));
+                    drawText(consumers, renderer, matrices, left + 12, rowY + 3,
+                        Text.literal(message).asOrderedText(), 0xFFE3E7F0);
+                } else if (visible.isEmpty() && line == rows - 1) {
+                    drawText(consumers, renderer, matrices, left + 12, rowY + 3,
+                        Text.literal(renderer.trimToWidth("Нет новых сообщений", width - 24)).asOrderedText(), 0xFFAAB6C8);
+                }
             }
         } finally {
             matrices.pop();
         }
     }
 
-    private static void submitBackground(VertexConsumerProvider consumers, TextRenderer renderer, MatrixStack matrices,
-                                         float x, float y, int width, int color) {
-        if (width <= 0 || (color >>> 24) == 0) return;
-        int spaceWidth = Math.max(1, renderer.getWidth(" "));
-        int count = Math.max(1, Math.min(256, (width + spaceWidth - 1) / spaceWidth));
-        String blank = " ".repeat(count);
-        renderer.draw(Text.literal(blank).asOrderedText(), x, y, 0x00000000, false,
-            matrices.peek().getPositionMatrix(), consumers, TextRenderer.TextLayerType.SEE_THROUGH, color, FULL_BRIGHT);
-    }
-
-    private static void submitBackground(VertexConsumerProvider consumers, TextRenderer renderer, MatrixStack matrices,
+    private static void submitBackground(VertexConsumerProvider consumers, MatrixStack matrices,
                                          float x, float y, int width, int height, int color) {
-        for (int row = 0; row < height; row++) submitBackground(consumers, renderer, matrices, x, y + row, width, color);
+        if (width <= 0 || height <= 0 || (color >>> 24) == 0) return;
+        ChatHologramQuad.emit(consumers.getBuffer(RenderLayers.textBackgroundSeeThrough()),
+            matrices.peek().getPositionMatrix(), x, y, width, height, color);
     }
 
-    private static void drawCorner(VertexConsumerProvider consumers, TextRenderer renderer, MatrixStack matrices,
+    private static void drawBorder(VertexConsumerProvider consumers, MatrixStack matrices,
+                                   float x, float y, int width, int height, int thickness, int color) {
+        submitBackground(consumers, matrices, x, y, width, thickness, color);
+        submitBackground(consumers, matrices, x, y + height - thickness, width, thickness, color);
+        submitBackground(consumers, matrices, x, y + thickness, thickness, height - 2 * thickness, color);
+        submitBackground(consumers, matrices, x + width - thickness, y + thickness, thickness, height - 2 * thickness, color);
+    }
+
+    private static void drawCorner(VertexConsumerProvider consumers, MatrixStack matrices,
                                    float x, float y, int directionX, int directionY, int accent) {
         int bright = withAlpha(accent, 245);
         float horizontalX = directionX > 0 ? x : x - 9;
         float verticalY = directionY > 0 ? y : y - 8;
-        submitBackground(consumers, renderer, matrices, horizontalX, y, 9, bright);
-        submitBackground(consumers, renderer, matrices, x, verticalY, 1, 8, bright);
+        submitBackground(consumers, matrices, horizontalX, y, 9, 1, bright);
+        submitBackground(consumers, matrices, x, verticalY, 1, 8, bright);
         float innerX = x + directionX * 4;
         float innerY = y + directionY * 4;
-        submitBackground(consumers, renderer, matrices, Math.min(x, innerX), innerY, 5, withAlpha(0xFF9BE8FF, 225));
+        submitBackground(consumers, matrices, Math.min(x, innerX), innerY, 5, 1, withAlpha(0xFF9BE8FF, 225));
     }
 
     private static void drawText(VertexConsumerProvider consumers, TextRenderer renderer, MatrixStack matrices,
-                                 float x, float y, net.minecraft.text.OrderedText text, int color, int background) {
+                                 float x, float y, net.minecraft.text.OrderedText text, int color) {
         renderer.draw(text, x, y, color, false, matrices.peek().getPositionMatrix(), consumers,
-            TextRenderer.TextLayerType.SEE_THROUGH, background, FULL_BRIGHT);
+            TextRenderer.TextLayerType.SEE_THROUGH, 0, FULL_BRIGHT);
     }
 
     private static String orderedTextToString(net.minecraft.text.OrderedText orderedText) {

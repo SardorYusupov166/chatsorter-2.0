@@ -28,7 +28,12 @@ tasks.register('testHologramLayout', JavaExec) {
     classpath = sourceSets.hologramTest.runtimeClasspath
     mainClass = 'dev.chatsorter.ChatHologramLayoutTest'
 }
-tasks.named('check') { dependsOn 'testHologramLayout' }
+tasks.register('testHologramQuads', JavaExec) {
+    dependsOn hologramTestClasses
+    classpath = sourceSets.hologramTest.runtimeClasspath
+    mainClass = 'dev.chatsorter.ChatHologramQuadTest'
+}
+tasks.named('check') { dependsOn 'testHologramLayout', 'testHologramQuads' }
 
 // Prefer Maven Central for shared Java libraries instead of probing game repositories.
 afterEvaluate {

@@ -27,6 +27,7 @@ import java.util.List;
 @Mixin(ChatHud.class)
 public abstract class ChatHudMixin {
     @org.spongepowered.asm.mixin.Unique private boolean chatsorter$matrixPushed;
+    @org.spongepowered.asm.mixin.Unique private boolean chatsorter$panelsRendered;
     // Minecraft's vanilla chat keeps only 100 messages and wrapped visual lines.
     // Raise both caps locally so other players do not need an additional mod.
     @ModifyConstant(method = "addMessage(Lnet/minecraft/client/gui/hud/ChatHudLine;)V", constant = @Constant(intValue = 100))
@@ -47,8 +48,12 @@ public abstract class ChatHudMixin {
     @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("HEAD"), cancellable = true)
     private void chatsorter$translate(DrawContext context, TextRenderer textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
         ChatHud hud = (ChatHud)(Object)this;
+        chatsorter$panelsRendered = false;
         if (dev.chatsorter.ChatWorldRenderer.shouldHideScreenChat(hud)) {
             chatsorter$matrixPushed = false;
+            // HEAD cancellation skips the normal RETURN hook. Extra chats must
+            // still get their own visibility check and screen fallback.
+            chatsorter$renderPanels(context, textRenderer, currentTick, mouseX, mouseY, focused, chatHidden);
             ci.cancel();
             return;
         }
@@ -87,8 +92,15 @@ public abstract class ChatHudMixin {
             context.getMatrices().popMatrix();
             chatsorter$matrixPushed = false;
         }
-        if (!chatHidden && ChatPanelManager.enabled()
+        chatsorter$renderPanels(context, textRenderer, currentTick, mouseX, mouseY, focused, chatHidden);
+    }
+
+    @org.spongepowered.asm.mixin.Unique
+    private void chatsorter$renderPanels(DrawContext context, TextRenderer textRenderer, int currentTick,
+                                         int mouseX, int mouseY, boolean focused, boolean chatHidden) {
+        if (!chatsorter$panelsRendered && !chatHidden && ChatPanelManager.enabled()
                 && (ChatHud)(Object)this == MinecraftClient.getInstance().inGameHud.getChatHud()) {
+            chatsorter$panelsRendered = true;
             ChatPanelManager.render(context, textRenderer, currentTick, mouseX, mouseY, focused, false);
         }
     }
