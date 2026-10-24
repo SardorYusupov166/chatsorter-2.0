@@ -38,6 +38,13 @@ public final class ChatWorldRenderer {
     private static final int ROW_HEIGHT = 14;
     // An avatar-anchored panel is much closer than the old camera-relative panel.
     private static final float WORLD_SCALE = 0.0052F;
+    // Third-person is a world object, not a large overlaid screen.
+    private static final float THIRD_PERSON_SCALE = 0.80F;
+    private static final double THIRD_PERSON_FORWARD = 2.25;
+    private static final double THIRD_PERSON_SIDE = 0.95;
+    private static final double THIRD_PERSON_LIFT = 0.22;
+    // Rendering happens exclusively on Minecraft's client render thread.
+    private static boolean renderWithDepth;
     // END_MAIN is after vanilla's world buffers have been flushed.
     private static final BufferAllocator HOLOGRAM_ALLOCATOR = new BufferAllocator(128 * 1024);
     private static final VertexConsumerProvider.Immediate HOLOGRAM_CONSUMERS = VertexConsumerProvider.immediate(HOLOGRAM_ALLOCATOR);
@@ -74,6 +81,7 @@ public final class ChatWorldRenderer {
 
     public static void reset() {
         SUBMITTED_CHATS.clear();
+        renderWithDepth = false;
     }
 
     private static void render(WorldRenderContext renderContext) {
@@ -111,17 +119,25 @@ public final class ChatWorldRenderer {
         // Anchor the hologram to the PLAYER, never to the third-person camera.
         // Follow-view tracks the player's interpolated look yaw, not camera position.
         float tickDelta = client.getRenderTickCounter().getTickProgress(true);
-        float playerYaw = ChatExperienceSettings.rpgFollowViewEnabled
-            ? player.getLerpedYaw(tickDelta) : player.getBodyYaw();
-        // The hologram has a physical orientation tied to the avatar, not a
-        // camera-facing billboard. Third-person camera orbit must not rotate it.
+        boolean firstPerson = client.options.getPerspective().isFirstPerson();
+        // The third-person player BODY determines the window orientation.
+        // Orbiting the camera, including F5 front view, must not move the UI.
+        float playerYaw = !firstPerson ? player.getBodyYaw()
+            : ChatExperienceSettings.rpgFollowViewEnabled
+                ? player.getLerpedYaw(tickDelta) : player.getBodyYaw();
         Quaternionf playerFacing = ChatHologramLayout.playerFacing(playerYaw);
         Vec3d playerPos = player.getLerpedPos(tickDelta);
         Vec3d cameraPos = camera.getCameraPos();
         Vector3f origin = ChatHologramLayout.playerAnchor(
             playerPos.x, playerPos.y, playerPos.z,
             cameraPos.x, cameraPos.y, cameraPos.z,
-            playerYaw, player.getEyeY() - player.getY() + 0.25);
+            playerYaw, player.getEyeY() - player.getY() + 0.25,
+            firstPerson ? ChatHologramLayout.PLAYER_DISTANCE : THIRD_PERSON_FORWARD,
+            firstPerson ? 0.0 : THIRD_PERSON_SIDE,
+            firstPerson ? 0.0 : THIRD_PERSON_LIFT);
+        // In third-person the avatar and world are allowed to occlude the
+        // hologram; this keeps it from painting on top of the player's body.
+        renderWithDepth = !firstPerson;
         // Use the same player-relative yaw for both the anchor and the panel face.
         // Camera rotation is used solely for frustum culling.
         Quaternionf facing = new Quaternionf(playerFacing);
@@ -144,7 +160,8 @@ public final class ChatWorldRenderer {
         double fov = client.options.getFov().getValue();
         ChatHologramLayout.Arrangement layout = ChatHologramLayout.arrange(widest,
             HEADER_HEIGHT + MAX_WORLD_ROWS * ROW_HEIGHT, chats.size(), ChatExperienceSettings.rpgPanelPosition,
-            worldScale(client) * (chats.size() == 1 ? 1.0F : 0.55F), fov, aspect);
+            worldScale(client) * (firstPerson ? 1.0F : THIRD_PERSON_SCALE)
+                * (chats.size() == 1 ? 1.0F : 0.55F), fov, aspect);
         double primaryDepth = 0;
         for (int i = 0; i < chats.size(); i++) {
             ChatHud hud = chats.get(i);
@@ -172,6 +189,9 @@ public final class ChatWorldRenderer {
             + ", inView=" + SUBMITTED_CHATS.size() + ", primaryDepth=" + primaryDepth
             + ", followView=" + ChatExperienceSettings.rpgFollowViewEnabled
             + ", anchor=player, orientation=player-yaw, playerYaw=" + playerYaw
+            + ", perspective=" + (firstPerson ? "first" : "third")
+            + ", depthTest=" + renderWithDepth
+            + ", side=" + (firstPerson ? 0.0 : THIRD_PERSON_SIDE)
             + ", cameraOffset=" + cameraPos.distanceTo(playerPos)
             + ", position=" + ChatExperienceSettings.rpgPanelPosition + ", scale=" + layout.scale()
             + ", fov=" + fov + ", aspect=" + aspect + ", mainVisibleRows=" + mainMessages.size()
@@ -309,7 +329,8 @@ public final class ChatWorldRenderer {
     private static void submitBackground(VertexConsumerProvider consumers, MatrixStack matrices,
                                          float x, float y, int width, int height, int color) {
         if (width <= 0 || height <= 0 || (color >>> 24) == 0) return;
-        ChatHologramQuad.emit(consumers.getBuffer(RenderLayers.textBackgroundSeeThrough()),
+        ChatHologramQuad.emit(consumers.getBuffer(renderWithDepth
+                ? RenderLayers.textBackground() : RenderLayers.textBackgroundSeeThrough()),
             matrices.peek().getPositionMatrix(), x, y, width, height, color);
     }
 
@@ -336,7 +357,8 @@ public final class ChatWorldRenderer {
     private static void drawText(VertexConsumerProvider consumers, TextRenderer renderer, MatrixStack matrices,
                                  float x, float y, net.minecraft.text.OrderedText text, int color) {
         renderer.draw(text, x, y, color, false, matrices.peek().getPositionMatrix(), consumers,
-            TextRenderer.TextLayerType.SEE_THROUGH, 0, FULL_BRIGHT);
+            renderWithDepth ? TextRenderer.TextLayerType.NORMAL : TextRenderer.TextLayerType.SEE_THROUGH,
+            0, FULL_BRIGHT);
     }
 
     private static int withAlpha(int color, int alpha) {
