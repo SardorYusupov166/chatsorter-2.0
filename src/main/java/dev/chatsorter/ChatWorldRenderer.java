@@ -104,12 +104,12 @@ public final class ChatWorldRenderer {
         Quaternionf cameraFacing = new Quaternionf(camera.getRotation());
         // Anchor the hologram to the PLAYER, never to the third-person camera.
         // Follow-view tracks the player's interpolated look yaw, not camera position.
-        float tickDelta = client.getRenderTickCounter().getTickDelta(true);
+        float tickDelta = client.getRenderTickCounter().getTickProgress(true);
         float playerYaw = ChatExperienceSettings.rpgFollowViewEnabled
             ? player.getLerpedYaw(tickDelta) : player.getBodyYaw();
         Quaternionf playerFacing = ChatHologramLayout.facing(cameraFacing, playerYaw, false);
         Vec3d playerPos = player.getLerpedPos(tickDelta);
-        Vec3d cameraPos = camera.getPos();
+        Vec3d cameraPos = camera.getCameraPos();
         Vector3f origin = ChatHologramLayout.playerAnchor(
             playerPos.x, playerPos.y, playerPos.z,
             cameraPos.x, cameraPos.y, cameraPos.z,
