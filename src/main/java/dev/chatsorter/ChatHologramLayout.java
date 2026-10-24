@@ -22,8 +22,16 @@ final class ChatHologramLayout {
 
     static Quaternionf facing(Quaternionfc cameraRotation, float bodyYaw, boolean followView) {
         if (followView || !Float.isFinite(bodyYaw)) return new Quaternionf(cameraRotation);
-        // Minecraft's camera looks down local -Z, including in yaw-only mode.
-        return new Quaternionf().rotationY((float)(Math.PI - Math.toRadians(bodyYaw)));
+        return playerFacing(bodyYaw);
+    }
+
+    /**
+     * Avatar orientation, independent of first/third-person camera position,
+     * pitch and yaw. Local +Z is the readable face, directed toward the avatar.
+     */
+    static Quaternionf playerFacing(float playerYaw) {
+        // Minecraft's player looks down local -Z for this rotation.
+        return new Quaternionf().rotationY((float)(Math.PI - Math.toRadians(playerYaw)));
     }
 
     static Vector3f forward(Quaternionfc rotation) {
@@ -38,8 +46,7 @@ final class ChatHologramLayout {
     static Vector3f playerAnchor(double playerX, double playerY, double playerZ,
                                  double cameraX, double cameraY, double cameraZ,
                                  float playerYaw, double eyeOffset) {
-        Quaternionf playerFacing = new Quaternionf()
-            .rotationY((float)(Math.PI - Math.toRadians(playerYaw)));
+        Quaternionf playerFacing = playerFacing(playerYaw);
         Vector3f ahead = forward(playerFacing);
         return new Vector3f(
             (float)(playerX - cameraX + ahead.x * PLAYER_DISTANCE),
