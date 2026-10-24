@@ -46,12 +46,26 @@ final class ChatHologramLayout {
     static Vector3f playerAnchor(double playerX, double playerY, double playerZ,
                                  double cameraX, double cameraY, double cameraZ,
                                  float playerYaw, double eyeOffset) {
-        Quaternionf playerFacing = playerFacing(playerYaw);
-        Vector3f ahead = forward(playerFacing);
+        return playerAnchor(playerX, playerY, playerZ, cameraX, cameraY, cameraZ,
+            playerYaw, eyeOffset, PLAYER_DISTANCE, 0.0, 0.0);
+    }
+
+    /**
+     * Independent world-space offsets relative to avatar orientation.
+     * A third-person window floats in front and slightly to the avatar's right,
+     * not between the third-person camera and the avatar's torso.
+     */
+    static Vector3f playerAnchor(double playerX, double playerY, double playerZ,
+                                 double cameraX, double cameraY, double cameraZ,
+                                 float playerYaw, double eyeOffset,
+                                 double forwardDistance, double sideOffset, double lift) {
+        Quaternionf playerRotation = playerFacing(playerYaw);
+        Vector3f ahead = forward(playerRotation);
+        Vector3f right = playerRotation.transform(new Vector3f(1.0F, 0.0F, 0.0F));
         return new Vector3f(
-            (float)(playerX - cameraX + ahead.x * PLAYER_DISTANCE),
-            (float)(playerY - cameraY + eyeOffset),
-            (float)(playerZ - cameraZ + ahead.z * PLAYER_DISTANCE));
+            (float)(playerX - cameraX + ahead.x * forwardDistance + right.x * sideOffset),
+            (float)(playerY - cameraY + eyeOffset + lift),
+            (float)(playerZ - cameraZ + ahead.z * forwardDistance + right.z * sideOffset));
     }
 
     static Arrangement arrange(int width, int height, int count, int position,
