@@ -14,36 +14,71 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** World-anchored, player-following RPG chat holograms. */
 public final class ChatWorldRenderer {
+    private static final Logger LOGGER = LoggerFactory.getLogger("ChatSorter/RPG");
     private static final int FULL_BRIGHT = 0x00F000F0;
     private static final int MAX_WORLD_ROWS = 7;
     private static final float WORLD_SCALE = 0.0021F;
+    private static final long LOG_INTERVAL_NANOS = 5_000_000_000L;
+    private static final Map<String, String> LAST_PHASES = new HashMap<>();
+    private static final Map<String, Long> LAST_LOG_TIMES = new HashMap<>();
+    private static long renderCallbacks;
 
     private ChatWorldRenderer() { }
 
     public static void register() {
         WorldRenderEvents.END_MAIN.register(ChatWorldRenderer::render);
+        LOGGER.info("[ChatSorter][RPG] Registered world render callback: WorldRenderEvents.END_MAIN");
     }
 
     public static boolean shouldHideScreenChat(ChatHud hud) {
         MinecraftClient client = MinecraftClient.getInstance();
-        return ChatExperienceSettings.rpgModeEnabled
+        boolean enabled = ChatExperienceSettings.rpgModeEnabled
             && client.player != null
             && !client.options.hudHidden
             && client.currentScreen == null
             && hud == client.inGameHud.getChatHud();
+        String reason = !ChatExperienceSettings.rpgModeEnabled ? "RPG mode is off"
+            : client.player == null ? "no player"
+            : client.options.hudHidden ? "HUD hidden"
+            : client.currentScreen != null ? "screen open: " + client.currentScreen.getClass().getName()
+            : hud != client.inGameHud.getChatHud() ? "not the primary chat HUD"
+            : "primary screen chat hidden; world hologram should replace it";
+        report("hud", enabled ? "cancelled" : "vanilla", reason, enabled ? LOG_INTERVAL_NANOS : 0);
+        return enabled;
     }
 
     private static void render(WorldRenderContext renderContext) {
+        renderCallbacks++;
+        try {
+            renderFrame(renderContext);
+        } catch (Throwable error) {
+            reportError(error);
+        }
+    }
+
+    private static void renderFrame(WorldRenderContext renderContext) {
         MinecraftClient client = MinecraftClient.getInstance();
         PlayerEntity player = client.player;
         if (!ChatExperienceSettings.rpgModeEnabled || player == null || client.world == null
-                || client.options.hudHidden || client.currentScreen != null) return;
+                || client.options.hudHidden || client.currentScreen != null) {
+            String reason = !ChatExperienceSettings.rpgModeEnabled ? "RPG mode is off"
+                : player == null ? "no player"
+                : client.world == null ? "no world"
+                : client.options.hudHidden ? "HUD hidden"
+                : "screen open: " + client.currentScreen.getClass().getName();
+            report("world", "skipped", "world render skipped: " + reason + "; callbacks=" + renderCallbacks, 0);
+            return;
+        }
 
         ArrayList<ChatHud> chats = new ArrayList<>();
         chats.add(client.inGameHud.getChatHud());
@@ -61,6 +96,12 @@ public final class ChatWorldRenderer {
         double originZ = playerPos.z + forwardZ * 1.25;
 
         VertexConsumerProvider consumers = renderContext.consumers();
+        MatrixStack worldMatrices = renderContext.matrices();
+        if (consumers == null || worldMatrices == null) {
+            report("world", "missing-context", "world render context missing: consumers="
+                + className(consumers) + ", matrices=" + (worldMatrices != null), LOG_INTERVAL_NANOS);
+            return;
+        }
         TextRenderer textRenderer = client.textRenderer;
         Quaternionf facing = camera.getRotation();
         int tick = player.age;
@@ -79,12 +120,45 @@ public final class ChatWorldRenderer {
             double anchorX = originX + rightX * side - cameraPos.x;
             double anchorY = originY + lift - cameraPos.y;
             double anchorZ = originZ + rightZ * side - cameraPos.z;
-            drawChat(consumers, textRenderer, renderContext.matrices(), hud, i, width, height,
+            drawChat(consumers, textRenderer, worldMatrices, hud, i, width, height,
                 anchorX, anchorY, anchorZ, facing, tick, scale);
         }
         // END_MAIN is a drawing callback: extraction command-queue entries are
         // already too late here. Flush the text layer's world vertices now.
+        boolean flushed = consumers instanceof VertexConsumerProvider.Immediate;
         if (consumers instanceof VertexConsumerProvider.Immediate immediate) immediate.draw();
+        List<ChatHudLine.Visible> mainMessages = ((ChatHudAccess)client.inGameHud.getChatHud()).chatsorter$getVisibleMessages();
+        report("world", "rendered", "world hologram draw submitted: callbacks=" + renderCallbacks
+            + ", chats=" + chats.size() + ", mainVisibleRows=" + mainMessages.size()
+            + ", consumers=" + className(consumers) + ", immediateFlush=" + flushed
+            + ", matrices=" + className(worldMatrices) + ", screen=" + client.currentScreen,
+            LOG_INTERVAL_NANOS);
+    }
+
+    private static String className(Object value) {
+        return value == null ? "null" : value.getClass().getName();
+    }
+
+    private static void reportError(Throwable error) {
+        long now = System.nanoTime();
+        Long last = LAST_LOG_TIMES.get("error");
+        if (last == null || now - last >= LOG_INTERVAL_NANOS) {
+            LAST_LOG_TIMES.put("error", now);
+            LOGGER.error("[ChatSorter][RPG] World hologram renderer failed at callback " + renderCallbacks, error);
+        }
+    }
+
+    private static void report(String key, String phase, String detail, long intervalNanos) {
+        long now = System.nanoTime();
+        String previousPhase = LAST_PHASES.get(key);
+        Long previousTime = LAST_LOG_TIMES.get(key);
+        boolean phaseChanged = !phase.equals(previousPhase);
+        boolean intervalElapsed = intervalNanos > 0
+            && (previousTime == null || now - previousTime >= intervalNanos);
+        if (!phaseChanged && !intervalElapsed) return;
+        LAST_PHASES.put(key, phase);
+        LAST_LOG_TIMES.put(key, now);
+        LOGGER.info("[ChatSorter][RPG] {}", detail);
     }
 
     private static int effectiveWidth(MinecraftClient client, ChatHud hud) {
