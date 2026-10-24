@@ -8,7 +8,7 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.client.render.Camera;
-import net.minecraft.client.render.command.RenderCommandQueue;
+import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.Text;
@@ -60,7 +60,7 @@ public final class ChatWorldRenderer {
         double originY = playerPos.y + 1.72;
         double originZ = playerPos.z + forwardZ * 1.25;
 
-        RenderCommandQueue queue = renderContext.commandQueue();
+        VertexConsumerProvider consumers = renderContext.consumers();
         TextRenderer textRenderer = client.textRenderer;
         Quaternionf facing = camera.getRotation();
         int tick = player.age;
@@ -79,9 +79,12 @@ public final class ChatWorldRenderer {
             double anchorX = originX + rightX * side - cameraPos.x;
             double anchorY = originY + lift - cameraPos.y;
             double anchorZ = originZ + rightZ * side - cameraPos.z;
-            drawChat(queue, textRenderer, renderContext.matrices(), hud, i, width, height,
+            drawChat(consumers, textRenderer, renderContext.matrices(), hud, i, width, height,
                 anchorX, anchorY, anchorZ, facing, tick, scale);
         }
+        // END_MAIN is a drawing callback: extraction command-queue entries are
+        // already too late here. Flush the text layer's world vertices now.
+        if (consumers instanceof VertexConsumerProvider.Immediate immediate) immediate.draw();
     }
 
     private static int effectiveWidth(MinecraftClient client, ChatHud hud) {
@@ -102,7 +105,7 @@ public final class ChatWorldRenderer {
         return WORLD_SCALE * (float)Math.max(0.65, Math.min(1.35, client.options.getChatScale().getValue()));
     }
 
-    private static void drawChat(RenderCommandQueue queue, TextRenderer renderer, MatrixStack matrices,
+    private static void drawChat(VertexConsumerProvider consumers, TextRenderer renderer, MatrixStack matrices,
                                  ChatHud hud, int index, int width, int availableHeight,
                                  double x, double y, double z, Quaternionf facing, int tick, float scale) {
         List<ChatHudLine.Visible> visible = ((ChatHudAccess)hud).chatsorter$getVisibleMessages();
@@ -128,25 +131,24 @@ public final class ChatWorldRenderer {
         if (rpgStyle && ChatExperienceSettings.rpgGlowEnabled) {
             int pulse = ChatExperienceSettings.rpgAnimationEnabled
                 ? 15 + (int)((Math.sin(tick * 0.035) + 1.0) * 7.0) : 18;
-            submitBackground(queue, renderer, matrices, left - 4, top - 3, width + 8, withAlpha(accent, pulse));
-            submitBackground(queue, renderer, matrices, left - 2, top - 2, width + 4, withAlpha(0xFF8BDFFF, pulse / 2));
+            submitBackground(consumers, renderer, matrices, left - 4, top - 3, width + 8, withAlpha(accent, pulse));
+            submitBackground(consumers, renderer, matrices, left - 2, top - 2, width + 4, withAlpha(0xFF8BDFFF, pulse / 2));
         }
-        submitBackground(queue, renderer, matrices, left, top, width, background);
-        submitBackground(queue, renderer, matrices, left + 2, top + 2, width - 4, withAlpha(accent, 210));
-        submitBackground(queue, renderer, matrices, left + 3, top + 3, width - 6, background);
-        submitBackground(queue, renderer, matrices, left + 7, top + 4, width - 14, headerBackground);
-        submitBackground(queue, renderer, matrices, left + 7, top + 15, width - 14, withAlpha(accent, 125));
-        submitBackground(queue, renderer, matrices, left + 1, top + 6, 2, 10, withAlpha(0xFF9BE8FF, 235));
-        submitBackground(queue, renderer, matrices, left + width - 3, top + 6, 2, 10, withAlpha(0xFF9BE8FF, 235));
-        submitBackground(queue, renderer, matrices, left + 7, top + height - 3, width - 14, 1, withAlpha(accent, 210));
-        drawCorner(queue, renderer, matrices, left + 2, top + 2, 1, 1, accent);
-        drawCorner(queue, renderer, matrices, left + width - 2, top + 2, -1, 1, accent);
-        drawCorner(queue, renderer, matrices, left + 2, top + height - 2, 1, -1, accent);
-        drawCorner(queue, renderer, matrices, left + width - 2, top + height - 2, -1, -1, accent);
+        submitBackground(consumers, renderer, matrices, left, top, width, background);
+        submitBackground(consumers, renderer, matrices, left + 2, top + 2, width - 4, withAlpha(accent, 210));
+        submitBackground(consumers, renderer, matrices, left + 3, top + 3, width - 6, background);
+        submitBackground(consumers, renderer, matrices, left + 7, top + 4, width - 14, headerBackground);
+        submitBackground(consumers, renderer, matrices, left + 7, top + 15, width - 14, withAlpha(accent, 125));
+        submitBackground(consumers, renderer, matrices, left + 1, top + 6, 2, 10, withAlpha(0xFF9BE8FF, 235));
+        submitBackground(consumers, renderer, matrices, left + width - 3, top + 6, 2, 10, withAlpha(0xFF9BE8FF, 235));
+        submitBackground(consumers, renderer, matrices, left + 7, top + height - 3, width - 14, 1, withAlpha(accent, 210));
+        drawCorner(consumers, renderer, matrices, left + 2, top + 2, 1, 1, accent);
+        drawCorner(consumers, renderer, matrices, left + width - 2, top + 2, -1, 1, accent);
+        drawCorner(consumers, renderer, matrices, left + 2, top + height - 2, 1, -1, accent);
+        drawCorner(consumers, renderer, matrices, left + width - 2, top + height - 2, -1, -1, accent);
 
         String title = rpgStyle ? "◈ СИСТЕМА  /  ЧАТ " + (index + 1) : "ЧАТ " + (index + 1);
-        queue.submitText(matrices, left + 8, top + 2, Text.literal(title).asOrderedText(), false,
-            TextRenderer.TextLayerType.SEE_THROUGH, FULL_BRIGHT, 0xFFDCEBFF, 0, 0);
+        drawText(consumers, renderer, matrices, left + 8, top + 2, Text.literal(title).asOrderedText(), 0xFFDCEBFF, 0);
 
         float messagesTop = top + 15;
         for (int line = 0; line < rows; line++) {
@@ -155,50 +157,55 @@ public final class ChatWorldRenderer {
             String raw = orderedTextToString(visibleLine.content());
             String message = renderer.trimToWidth(raw, Math.max(1, width - 14));
             float rowY = messagesTop + line * 10;
-            submitBackground(queue, renderer, matrices, left + 3, rowY - 1, width - 6,
+            submitBackground(consumers, renderer, matrices, left + 3, rowY - 1, width - 6,
                 (line & 1) == 0 ? 0x37151A28 : 0x3020142C);
-            queue.submitText(matrices, left + 7, rowY, Text.literal(message).asOrderedText(), false,
-                TextRenderer.TextLayerType.SEE_THROUGH, FULL_BRIGHT, 0xFFE3E7F0, 0, 0);
+            drawText(consumers, renderer, matrices, left + 7, rowY, Text.literal(message).asOrderedText(), 0xFFE3E7F0, 0);
         }
 
         if (rpgStyle && ChatExperienceSettings.rpgParticlesEnabled) {
             double phase = tick * 0.045 + index * 1.7;
             float particleX = (float)(left + 14 + (width - 28) * ((Math.sin(phase) + 1.0) * 0.5));
-            submitBackground(queue, renderer, matrices, particleX, top - 2, 3, 3, 0xD09BE8FF);
-            submitBackground(queue, renderer, matrices, left + width - 3, top + height - 7, 2, 2, 0xC09D82FF);
+            submitBackground(consumers, renderer, matrices, particleX, top - 2, 3, 3, 0xD09BE8FF);
+            submitBackground(consumers, renderer, matrices, left + width - 3, top + height - 7, 2, 2, 0xC09D82FF);
         }
         if (rpgStyle && ChatExperienceSettings.rpgAnimationEnabled) {
             int scanY = (int)(Math.floorMod(tick + index * 19, Math.max(1, height - 21)));
-            submitBackground(queue, renderer, matrices, left + 9, top + 16 + scanY, width - 18, 0x129BE8FF);
+            submitBackground(consumers, renderer, matrices, left + 9, top + 16 + scanY, width - 18, 0x129BE8FF);
         }
         matrices.pop();
     }
 
-    private static void submitBackground(RenderCommandQueue queue, TextRenderer renderer, MatrixStack matrices,
+    private static void submitBackground(VertexConsumerProvider consumers, TextRenderer renderer, MatrixStack matrices,
                                          float x, float y, int width, int color) {
         if (width <= 0 || (color >>> 24) == 0) return;
         int spaceWidth = Math.max(1, renderer.getWidth(" "));
         int count = Math.max(1, Math.min(256, (width + spaceWidth - 1) / spaceWidth));
         String blank = " ".repeat(count);
-        queue.submitText(matrices, x, y, Text.literal(blank).asOrderedText(), false,
-            TextRenderer.TextLayerType.SEE_THROUGH, FULL_BRIGHT, 0x00000000, color, 0);
+        renderer.draw(Text.literal(blank).asOrderedText(), x, y, 0x00000000, false,
+            matrices.peek().getPositionMatrix(), consumers, TextRenderer.TextLayerType.SEE_THROUGH, color, FULL_BRIGHT);
     }
 
-    private static void submitBackground(RenderCommandQueue queue, TextRenderer renderer, MatrixStack matrices,
+    private static void submitBackground(VertexConsumerProvider consumers, TextRenderer renderer, MatrixStack matrices,
                                          float x, float y, int width, int height, int color) {
-        for (int row = 0; row < height; row++) submitBackground(queue, renderer, matrices, x, y + row, width, color);
+        for (int row = 0; row < height; row++) submitBackground(consumers, renderer, matrices, x, y + row, width, color);
     }
 
-    private static void drawCorner(RenderCommandQueue queue, TextRenderer renderer, MatrixStack matrices,
+    private static void drawCorner(VertexConsumerProvider consumers, TextRenderer renderer, MatrixStack matrices,
                                    float x, float y, int directionX, int directionY, int accent) {
         int bright = withAlpha(accent, 245);
         float horizontalX = directionX > 0 ? x : x - 9;
         float verticalY = directionY > 0 ? y : y - 8;
-        submitBackground(queue, renderer, matrices, horizontalX, y, 9, bright);
-        submitBackground(queue, renderer, matrices, x, verticalY, 1, 8, bright);
+        submitBackground(consumers, renderer, matrices, horizontalX, y, 9, bright);
+        submitBackground(consumers, renderer, matrices, x, verticalY, 1, 8, bright);
         float innerX = x + directionX * 4;
         float innerY = y + directionY * 4;
-        submitBackground(queue, renderer, matrices, Math.min(x, innerX), innerY, 5, withAlpha(0xFF9BE8FF, 225));
+        submitBackground(consumers, renderer, matrices, Math.min(x, innerX), innerY, 5, withAlpha(0xFF9BE8FF, 225));
+    }
+
+    private static void drawText(VertexConsumerProvider consumers, TextRenderer renderer, MatrixStack matrices,
+                                 float x, float y, net.minecraft.text.OrderedText text, int color, int background) {
+        renderer.draw(text, x, y, color, false, matrices.peek().getPositionMatrix(), consumers,
+            TextRenderer.TextLayerType.SEE_THROUGH, background, FULL_BRIGHT);
     }
 
     private static String orderedTextToString(net.minecraft.text.OrderedText orderedText) {
