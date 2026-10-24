@@ -7,7 +7,8 @@ import org.joml.Vector3fc;
 
 /** Camera-relative geometry, kept independent of Minecraft for regression tests. */
 final class ChatHologramLayout {
-    static final double DISTANCE = 2.2;
+    static final double DISTANCE = 2.2; // Reference distance for panel sizing / FOV fitting.
+    static final double PLAYER_DISTANCE = 1.65; // World blocks in front of the avatar.
     private static final double VIEW_MARGIN = 0.88;
     private static final int CELL_PADDING = 24;
 
@@ -21,6 +22,23 @@ final class ChatHologramLayout {
 
     static Vector3f forward(Quaternionfc rotation) {
         return rotation.transform(new Vector3f(0.0F, 0.0F, -1.0F)).normalize();
+    }
+
+    /**
+     * Position the panel in front of the avatar in camera-relative world coordinates.
+     * Subtracting camera XYZ is essential: a third-person camera must not move the
+     * panel in world space. Calculate in double precision before casting to float.
+     */
+    static Vector3f playerAnchor(double playerX, double playerY, double playerZ,
+                                 double cameraX, double cameraY, double cameraZ,
+                                 float playerYaw, double eyeOffset) {
+        Quaternionf playerFacing = new Quaternionf()
+            .rotationY((float)(Math.PI - Math.toRadians(playerYaw)));
+        Vector3f ahead = forward(playerFacing);
+        return new Vector3f(
+            (float)(playerX - cameraX + ahead.x * PLAYER_DISTANCE),
+            (float)(playerY - cameraY + eyeOffset),
+            (float)(playerZ - cameraZ + ahead.z * PLAYER_DISTANCE));
     }
 
     static Arrangement arrange(int width, int height, int count, int position,
