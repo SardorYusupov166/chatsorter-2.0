@@ -26,8 +26,10 @@ import java.util.Map;
 public final class ChatWorldRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("ChatSorter/RPG");
     private static final int FULL_BRIGHT = 0x00F000F0;
-    private static final int MAX_WORLD_ROWS = 7;
-    private static final float WORLD_SCALE = 0.0042F;
+    private static final int MAX_WORLD_ROWS = 10;
+    private static final int HEADER_HEIGHT = 30;
+    private static final int ROW_HEIGHT = 14;
+    private static final float WORLD_SCALE = 0.0078F;
     private static final double HOLOGRAM_DISTANCE = 2.2;
     private static final long LOG_INTERVAL_NANOS = 5_000_000_000L;
     private static final Map<String, String> LAST_PHASES = new HashMap<>();
@@ -109,7 +111,7 @@ public final class ChatWorldRenderer {
             int row = i / 2;
             int width = effectiveWidth(client, hud);
             int height = effectiveHeight(client, hud);
-            float scale = worldScale(client);
+            float scale = worldScale(client) * (chats.size() == 1 ? 1.0F : 0.55F);
             // A single chat belongs in the centre of the player's view. With
             // multiple chats, fan them out symmetrically in the player's plane.
             double side = chats.size() == 1 ? 0.0
@@ -118,7 +120,7 @@ public final class ChatWorldRenderer {
             double anchorX = originX + right.x * side;
             double anchorY = originY + lift;
             double anchorZ = originZ + right.z * side;
-            drawChat(consumers, textRenderer, worldMatrices, hud, i, width, height,
+            drawChat(consumers, textRenderer, worldMatrices, hud, i, width,
                 anchorX, anchorY, anchorZ, facing, tick, scale);
         }
         // BEFORE_TRANSLUCENT leaves the shared consumers under the world renderer's normal flush.
@@ -175,14 +177,14 @@ public final class ChatWorldRenderer {
     }
 
     private static void drawChat(VertexConsumerProvider consumers, TextRenderer renderer, MatrixStack matrices,
-                                 ChatHud hud, int index, int width, int availableHeight,
+                                 ChatHud hud, int index, int width,
                                  double x, double y, double z, Quaternionf facing, int tick, float scale) {
         List<ChatHudLine.Visible> visible = ((ChatHudAccess)hud).chatsorter$getVisibleMessages();
-        int rows = Math.min(Math.min(MAX_WORLD_ROWS, Math.max(1, (availableHeight - 20) / 10)), visible.size());
+        int rows = MAX_WORLD_ROWS;
         int palette = ChatPanelManager.palette(hud);
         boolean rpgStyle = ChatPanelManager.usesRpgStyle(hud);
         int accent = rpgStyle ? ChatRpgRenderer.accent(palette) : 0xFFB9C2CC;
-        int height = 23 + rows * 10;
+        int height = HEADER_HEIGHT + rows * ROW_HEIGHT;
 
         matrices.push();
         matrices.translate(x, y, z);
@@ -191,44 +193,49 @@ public final class ChatWorldRenderer {
 
         float left = -width / 2.0F;
         float top = -height / 2.0F;
-        int background = rpgStyle ? 0xA9080B18 : 0xA8000000;
-        int headerBackground = rpgStyle ? 0xD4101930 : 0xC322272D;
+        int background = rpgStyle ? 0xD5080B18 : 0xC8000000;
+        int headerBackground = rpgStyle ? 0xF4101930 : 0xE022272D;
+        int frame = rpgStyle ? withAlpha(accent, 225) : 0xFFB9C0C8;
 
-        // Layered edge light and separated corner brackets make this read as a
-        // projected system panel rather than a flat chat window. All geometry
-        // uses text background quads, so it stays cheap and needs no textures.
+        // A broad, fixed-size floating panel follows the camera like an in-world
+        // Minecraft screen. The layered edges echo the inventory frame while
+        // the content remains the normal ChatSorter message stream.
         if (rpgStyle && ChatExperienceSettings.rpgGlowEnabled) {
             int pulse = ChatExperienceSettings.rpgAnimationEnabled
-                ? 15 + (int)((Math.sin(tick * 0.035) + 1.0) * 7.0) : 18;
-            submitBackground(consumers, renderer, matrices, left - 4, top - 3, width + 8, withAlpha(accent, pulse));
+                ? 18 + (int)((Math.sin(tick * 0.035) + 1.0) * 8.0) : 22;
+            submitBackground(consumers, renderer, matrices, left - 5, top - 5, width + 10, withAlpha(accent, pulse));
             submitBackground(consumers, renderer, matrices, left - 2, top - 2, width + 4, withAlpha(0xFF8BDFFF, pulse / 2));
         }
-        submitBackground(consumers, renderer, matrices, left, top, width, background);
-        submitBackground(consumers, renderer, matrices, left + 2, top + 2, width - 4, withAlpha(accent, 210));
-        submitBackground(consumers, renderer, matrices, left + 3, top + 3, width - 6, background);
-        submitBackground(consumers, renderer, matrices, left + 7, top + 4, width - 14, headerBackground);
-        submitBackground(consumers, renderer, matrices, left + 7, top + 15, width - 14, withAlpha(accent, 125));
-        submitBackground(consumers, renderer, matrices, left + 1, top + 6, 2, 10, withAlpha(0xFF9BE8FF, 235));
-        submitBackground(consumers, renderer, matrices, left + width - 3, top + 6, 2, 10, withAlpha(0xFF9BE8FF, 235));
-        submitBackground(consumers, renderer, matrices, left + 7, top + height - 3, width - 14, 1, withAlpha(accent, 210));
-        drawCorner(consumers, renderer, matrices, left + 2, top + 2, 1, 1, accent);
-        drawCorner(consumers, renderer, matrices, left + width - 2, top + 2, -1, 1, accent);
-        drawCorner(consumers, renderer, matrices, left + 2, top + height - 2, 1, -1, accent);
-        drawCorner(consumers, renderer, matrices, left + width - 2, top + height - 2, -1, -1, accent);
+        submitBackground(consumers, renderer, matrices, left - 2, top - 2, width + 4, withAlpha(0xFF000000, 165));
+        submitBackground(consumers, renderer, matrices, left, top, width, frame);
+        submitBackground(consumers, renderer, matrices, left + 2, top + 2, width - 4, background);
+        submitBackground(consumers, renderer, matrices, left + 5, top + 5, width - 10, headerBackground);
+        submitBackground(consumers, renderer, matrices, left + 5, top + HEADER_HEIGHT - 2, width - 10, 2, withAlpha(accent, 220));
+        submitBackground(consumers, renderer, matrices, left + 2, top + 2, width - 4, 1, 0xFFE8F0FA);
+        submitBackground(consumers, renderer, matrices, left + 2, top + 2, 1, height - 4, 0xFFE8F0FA);
+        submitBackground(consumers, renderer, matrices, left + width - 3, top + 3, 1, height - 6, 0xA8000000);
+        submitBackground(consumers, renderer, matrices, left + 3, top + height - 3, width - 6, 1, 0xA8000000);
 
         String title = rpgStyle ? "◈ СИСТЕМА  /  ЧАТ " + (index + 1) : "ЧАТ " + (index + 1);
-        drawText(consumers, renderer, matrices, left + 8, top + 2, Text.literal(title).asOrderedText(), 0xFFDCEBFF, 0);
+        drawText(consumers, renderer, matrices, left + 10, top + 6, Text.literal(title).asOrderedText(), 0xFFDCEBFF, 0);
+        String subtitle = "ПОСЛЕДНИЕ СООБЩЕНИЯ";
+        drawText(consumers, renderer, matrices, left + 10, top + 17, Text.literal(subtitle).asOrderedText(), withAlpha(accent, 230), 0);
 
-        float messagesTop = top + 15;
+        float messagesTop = top + HEADER_HEIGHT + 2;
         for (int line = 0; line < rows; line++) {
             int messageIndex = rows - line - 1;
-            ChatHudLine.Visible visibleLine = visible.get(messageIndex);
-            String raw = orderedTextToString(visibleLine.content());
-            String message = renderer.trimToWidth(raw, Math.max(1, width - 14));
-            float rowY = messagesTop + line * 10;
-            submitBackground(consumers, renderer, matrices, left + 3, rowY - 1, width - 6,
-                (line & 1) == 0 ? 0x37151A28 : 0x3020142C);
-            drawText(consumers, renderer, matrices, left + 7, rowY, Text.literal(message).asOrderedText(), 0xFFE3E7F0, 0);
+            float rowY = messagesTop + line * ROW_HEIGHT;
+            int rowColor = (line & 1) == 0 ? 0x40151A28 : 0x3020142C;
+            submitBackground(consumers, renderer, matrices, left + 5, rowY, width - 10, ROW_HEIGHT - 1, rowColor);
+            if (messageIndex < visible.size()) {
+                ChatHudLine.Visible visibleLine = visible.get(messageIndex);
+                String raw = orderedTextToString(visibleLine.content());
+                String message = renderer.trimToWidth(raw, Math.max(1, width - 24));
+                drawText(consumers, renderer, matrices, left + 12, rowY + 3, Text.literal(message).asOrderedText(), 0xFFE3E7F0, 0);
+            } else if (visible.isEmpty() && line == rows - 1) {
+                drawText(consumers, renderer, matrices, left + 12, rowY + 3,
+                    Text.literal("Нет новых сообщений").asOrderedText(), 0xFFAAB6C8, 0);
+            }
         }
 
         if (rpgStyle && ChatExperienceSettings.rpgParticlesEnabled) {
