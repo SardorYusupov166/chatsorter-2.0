@@ -14,6 +14,7 @@ public final class ChatHologramLayoutTest {
         bodyTracking();
         thirdPersonOrientationRegression();
         playerAnchoringRegression();
+        thirdPersonPlacementRegression();
         hudFallbackRegression();
         behindCameraRegression();
         fittedLayouts();
@@ -91,6 +92,32 @@ public final class ChatHologramLayoutTest {
         require(Math.abs(turned.x + ChatHologramLayout.PLAYER_DISTANCE) < 0.0001
                 && Math.abs(turned.z) < 0.0001,
             "Hologram must rotate around the avatar, not the camera");
+    }
+
+    private static void thirdPersonPlacementRegression() {
+        // Third-person camera movement must not influence the world-space
+        // position of the window; offsets are relative to the avatar.
+        double forward = 2.25, side = 0.95, lift = 0.22;
+        Vector3f cameraA = ChatHologramLayout.playerAnchor(
+            100, 64, -20, 100, 66, -24, 0, 1.8, forward, side, lift);
+        Vector3f cameraB = ChatHologramLayout.playerAnchor(
+            100, 64, -20, 104, 67, -18, 0, 1.8, forward, side, lift);
+        require(cameraA.add(100, 66, -24).distance(cameraB.add(104, 67, -18)) < 0.0001,
+            "Third-person camera orbit must not move the floating window");
+        for (float yaw : new float[]{0, 90, 180, 270}) {
+            Quaternionf rotation = ChatHologramLayout.playerFacing(yaw);
+            Vector3f origin = ChatHologramLayout.playerAnchor(
+                0, 64, 0, 0, 64, 0, yaw, 1.8, forward, side, lift);
+            Vector3f ahead = ChatHologramLayout.forward(rotation);
+            Vector3f right = rotation.transform(new Vector3f(1, 0, 0));
+            float along = origin.dot(ahead), lateral = origin.dot(right);
+            require(Math.abs(along - forward) < 0.0001,
+                "Hologram must float in front of the avatar");
+            require(Math.abs(lateral - side) < 0.0001,
+                "Hologram must not cover the avatar's centerline");
+            require(Math.abs(origin.y - 1.8 - lift) < 0.0001,
+                "Hologram height must follow player eye level");
+        }
     }
 
     private static void hudFallbackRegression() {
