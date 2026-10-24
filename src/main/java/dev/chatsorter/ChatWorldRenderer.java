@@ -12,8 +12,8 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.Text;
-import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +27,8 @@ public final class ChatWorldRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger("ChatSorter/RPG");
     private static final int FULL_BRIGHT = 0x00F000F0;
     private static final int MAX_WORLD_ROWS = 7;
-    private static final float WORLD_SCALE = 0.0021F;
+    private static final float WORLD_SCALE = 0.0042F;
+    private static final double HOLOGRAM_DISTANCE = 2.2;
     private static final long LOG_INTERVAL_NANOS = 5_000_000_000L;
     private static final Map<String, String> LAST_PHASES = new HashMap<>();
     private static final Map<String, Long> LAST_LOG_TIMES = new HashMap<>();
@@ -36,8 +37,8 @@ public final class ChatWorldRenderer {
     private ChatWorldRenderer() { }
 
     public static void register() {
-        WorldRenderEvents.END_MAIN.register(ChatWorldRenderer::render);
-        LOGGER.info("[ChatSorter][RPG] Registered world render callback: WorldRenderEvents.END_MAIN");
+        WorldRenderEvents.BEFORE_TRANSLUCENT.register(ChatWorldRenderer::render);
+        LOGGER.info("[ChatSorter][RPG] Registered world render callback: WorldRenderEvents.BEFORE_TRANSLUCENT");
     }
 
     public static boolean shouldHideScreenChat(ChatHud hud) {
@@ -86,14 +87,12 @@ public final class ChatWorldRenderer {
         if (chats.isEmpty()) return;
 
         Camera camera = client.gameRenderer.getCamera();
-        Vec3d cameraPos = camera.getCameraPos();
-        Vec3d playerPos = player.getLerpedPos(1.0F);
-        float yaw = (float)Math.toRadians(player.getYaw());
-        double forwardX = -Math.sin(yaw), forwardZ = Math.cos(yaw);
-        double rightX = Math.cos(yaw), rightZ = Math.sin(yaw);
-        double originX = playerPos.x + forwardX * 1.25;
-        double originY = playerPos.y + 1.72;
-        double originZ = playerPos.z + forwardZ * 1.25;
+        Quaternionf facing = camera.getRotation();
+        Vector3f forward = facing.transform(new Vector3f(0.0F, 0.0F, 1.0F)).normalize();
+        Vector3f right = facing.transform(new Vector3f(1.0F, 0.0F, 0.0F)).normalize();
+        double originX = forward.x * HOLOGRAM_DISTANCE;
+        double originY = forward.y * HOLOGRAM_DISTANCE;
+        double originZ = forward.z * HOLOGRAM_DISTANCE;
 
         VertexConsumerProvider consumers = renderContext.consumers();
         MatrixStack worldMatrices = renderContext.matrices();
@@ -103,7 +102,6 @@ public final class ChatWorldRenderer {
             return;
         }
         TextRenderer textRenderer = client.textRenderer;
-        Quaternionf facing = camera.getRotation();
         int tick = player.age;
         for (int i = 0; i < chats.size(); i++) {
             ChatHud hud = chats.get(i);
@@ -117,20 +115,17 @@ public final class ChatWorldRenderer {
             double side = chats.size() == 1 ? 0.0
                 : (width * scale * 0.5 + 0.08) * (column == 0 ? -1 : 1);
             double lift = -row * (Math.min(height, 180) * scale + 0.08);
-            double anchorX = originX + rightX * side - cameraPos.x;
-            double anchorY = originY + lift - cameraPos.y;
-            double anchorZ = originZ + rightZ * side - cameraPos.z;
+            double anchorX = originX + right.x * side;
+            double anchorY = originY + lift;
+            double anchorZ = originZ + right.z * side;
             drawChat(consumers, textRenderer, worldMatrices, hud, i, width, height,
                 anchorX, anchorY, anchorZ, facing, tick, scale);
         }
-        // END_MAIN is a drawing callback: extraction command-queue entries are
-        // already too late here. Flush the text layer's world vertices now.
-        boolean flushed = consumers instanceof VertexConsumerProvider.Immediate;
-        if (consumers instanceof VertexConsumerProvider.Immediate immediate) immediate.draw();
+        // BEFORE_TRANSLUCENT leaves the shared consumers under the world renderer's normal flush.
         List<ChatHudLine.Visible> mainMessages = ((ChatHudAccess)client.inGameHud.getChatHud()).chatsorter$getVisibleMessages();
-        report("world", "rendered", "world hologram draw submitted: callbacks=" + renderCallbacks
+        report("world", "rendered", "world hologram draw queued to world pass: callbacks=" + renderCallbacks
             + ", chats=" + chats.size() + ", mainVisibleRows=" + mainMessages.size()
-            + ", consumers=" + className(consumers) + ", immediateFlush=" + flushed
+            + ", consumers=" + className(consumers) + ", event=BEFORE_TRANSLUCENT"
             + ", matrices=" + className(worldMatrices) + ", screen=" + client.currentScreen,
             LOG_INTERVAL_NANOS);
     }
