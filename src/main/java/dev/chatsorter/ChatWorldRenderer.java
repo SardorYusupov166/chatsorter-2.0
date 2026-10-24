@@ -113,15 +113,18 @@ public final class ChatWorldRenderer {
         float tickDelta = client.getRenderTickCounter().getTickProgress(true);
         float playerYaw = ChatExperienceSettings.rpgFollowViewEnabled
             ? player.getLerpedYaw(tickDelta) : player.getBodyYaw();
-        Quaternionf playerFacing = ChatHologramLayout.facing(cameraFacing, playerYaw, false);
+        // The hologram has a physical orientation tied to the avatar, not a
+        // camera-facing billboard. Third-person camera orbit must not rotate it.
+        Quaternionf playerFacing = ChatHologramLayout.playerFacing(playerYaw);
         Vec3d playerPos = player.getLerpedPos(tickDelta);
         Vec3d cameraPos = camera.getCameraPos();
         Vector3f origin = ChatHologramLayout.playerAnchor(
             playerPos.x, playerPos.y, playerPos.z,
             cameraPos.x, cameraPos.y, cameraPos.z,
             playerYaw, player.getEyeY() - player.getY() + 0.25);
-        // Screen-facing billboard affects readability only, not world placement.
-        Quaternionf facing = cameraFacing;
+        // Use the same player-relative yaw for both the anchor and the panel face.
+        // Camera rotation is used solely for frustum culling.
+        Quaternionf facing = new Quaternionf(playerFacing);
         Vector3f right = playerFacing.transform(new Vector3f(1.0F, 0.0F, 0.0F)).normalize();
         Vector3f up = new Vector3f(0.0F, 1.0F, 0.0F);
 
@@ -168,7 +171,7 @@ public final class ChatWorldRenderer {
             + ", version=" + ChatSorter.VERSION + ", chats=" + chats.size()
             + ", inView=" + SUBMITTED_CHATS.size() + ", primaryDepth=" + primaryDepth
             + ", followView=" + ChatExperienceSettings.rpgFollowViewEnabled
-            + ", anchor=player, playerYaw=" + playerYaw
+            + ", anchor=player, orientation=player-yaw, playerYaw=" + playerYaw
             + ", cameraOffset=" + cameraPos.distanceTo(playerPos)
             + ", position=" + ChatExperienceSettings.rpgPanelPosition + ", scale=" + layout.scale()
             + ", fov=" + fov + ", aspect=" + aspect + ", mainVisibleRows=" + mainMessages.size()
