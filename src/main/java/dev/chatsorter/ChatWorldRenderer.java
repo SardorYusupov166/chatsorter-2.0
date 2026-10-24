@@ -34,14 +34,12 @@ public final class ChatWorldRenderer {
     private static final int MAX_WORLD_ROWS = 10;
     private static final int HEADER_HEIGHT = 30;
     private static final int ROW_HEIGHT = 14;
-    private static final float WORLD_SCALE = 0.0078F;
+    // An avatar-anchored panel is much closer than the old camera-relative panel.
+    private static final float WORLD_SCALE = 0.0052F;
     private static final long LOG_INTERVAL_NANOS = 5_000_000_000L;
-    private static final long FRAME_TIMEOUT_NANOS = 500_000_000L;
     private static final Map<String, String> LAST_PHASES = new HashMap<>();
     private static final Map<String, Long> LAST_LOG_TIMES = new HashMap<>();
     private static final Set<ChatHud> SUBMITTED_CHATS = Collections.newSetFromMap(new IdentityHashMap<>());
-    private static Object submittedWorld;
-    private static long submittedAt;
     private static long renderCallbacks;
 
     private ChatWorldRenderer() { }
@@ -53,30 +51,23 @@ public final class ChatWorldRenderer {
 
     public static boolean shouldHideScreenChat(ChatHud hud) {
         MinecraftClient client = MinecraftClient.getInstance();
-        boolean requested = ChatExperienceSettings.rpgModeEnabled
-            && client.player != null
-            && client.world != null
-            && !client.options.hudHidden
-            && client.currentScreen == null;
-        long age = System.nanoTime() - submittedAt;
-        boolean enabled = requested && submittedWorld == client.world && SUBMITTED_CHATS.contains(hud)
-            && age >= 0 && age < FRAME_TIMEOUT_NANOS;
-        String reason = !ChatExperienceSettings.rpgModeEnabled ? "RPG mode is off"
-            : client.player == null ? "no player"
-            : client.world == null ? "no world"
-            : client.options.hudHidden ? "HUD hidden"
-            : client.currentScreen != null ? "screen open: " + client.currentScreen.getClass().getName()
-            : enabled ? "screen chat replaced after an in-view world submission"
-            : "screen chat retained: no recent in-view hologram submission";
-        report("hud:" + ChatPanelManager.id(hud), enabled ? "cancelled" : "vanilla", reason,
-            requested ? LOG_INTERVAL_NANOS : 0);
-        return enabled;
+        // Important: a world-anchored panel must NOT cause vanilla HUD chat to
+        // reappear when the player looks up/down or turns away from the panel.
+        // World frustum visibility is purely a rendering concern.
+        boolean active = ChatHologramLayout.hideVanillaChat(
+            ChatExperienceSettings.rpgModeEnabled, client.player != null,
+            client.world != null, !client.options.hudHidden, client.currentScreen == null);
+        String reason = !active ? "RPG inactive, HUD disabled, or another screen open"
+            : SUBMITTED_CHATS.contains(hud)
+                ? "world hologram submitted; vanilla HUD suppressed"
+                : "world hologram outside view/not submitted; vanilla HUD still suppressed";
+        report("hud:" + ChatPanelManager.id(hud), active ? "suppressed" : "vanilla",
+            reason, active ? LOG_INTERVAL_NANOS : 0);
+        return active;
     }
 
     public static void reset() {
         SUBMITTED_CHATS.clear();
-        submittedWorld = null;
-        submittedAt = 0;
     }
 
     private static void render(WorldRenderContext renderContext) {
@@ -162,10 +153,6 @@ public final class ChatWorldRenderer {
             drawChat(consumers, textRenderer, worldMatrices, hud, i, width,
                 anchorX, anchorY, anchorZ, facing, tick, scale);
             SUBMITTED_CHATS.add(hud);
-        }
-        if (!SUBMITTED_CHATS.isEmpty()) {
-            submittedWorld = client.world;
-            submittedAt = System.nanoTime();
         }
         // BEFORE_TRANSLUCENT leaves the shared consumers under the world renderer's normal flush.
         List<ChatHudLine.Visible> mainMessages = ((ChatHudAccess)client.inGameHud.getChatHud()).chatsorter$getVisibleMessages();
