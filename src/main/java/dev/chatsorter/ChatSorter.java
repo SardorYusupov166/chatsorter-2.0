@@ -1,6 +1,7 @@
 package dev.chatsorter;
 
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -28,7 +29,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatSorter implements ClientModInitializer {
-    public static final String VERSION = "2.0.0-alpha.17";
+    public static final String VERSION = FabricLoader.getInstance().getModContainer("chatsorter")
+        .map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse("unknown");
     private static final int MAX_CHAT_HISTORY = 16_384;
     private static final DateTimeFormatter MESSAGE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     public static int maxChatHistory() { return MAX_CHAT_HISTORY; }
@@ -235,6 +237,7 @@ public class ChatSorter implements ClientModInitializer {
             });
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            ChatWorldRenderer.reset();
             saveHistory(true);
             ChatBookmarks.flush();
             ChatSorterDiagnostics.endSession();

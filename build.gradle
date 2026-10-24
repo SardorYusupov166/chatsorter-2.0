@@ -16,6 +16,20 @@ processResources { inputs.property 'version', project.version; filesMatching('fa
 tasks.withType(JavaCompile).configureEach { options.release = 21; options.encoding = 'UTF-8' }
 java { toolchain.languageVersion = JavaLanguageVersion.of(21) }
 
+// Geometry checks run without a game window and without an extra test framework.
+sourceSets {
+    hologramTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath
+    }
+}
+tasks.register('testHologramLayout', JavaExec) {
+    dependsOn hologramTestClasses
+    classpath = sourceSets.hologramTest.runtimeClasspath
+    mainClass = 'dev.chatsorter.ChatHologramLayoutTest'
+}
+tasks.named('check') { dependsOn 'testHologramLayout' }
+
 // Prefer Maven Central for shared Java libraries instead of probing game repositories.
 afterEvaluate {
     def central = repositories.find { it.name == 'MavenRepo' }

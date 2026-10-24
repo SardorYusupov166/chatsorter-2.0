@@ -1,4 +1,4 @@
-# ChatSorter 2.0.0-alpha.13 — Minecraft 1.21.11
+# ChatSorter 2.0.0-alpha.19 — Minecraft 1.21.11
 
 Создан **mlpgod** для MigosMC и других серверов Minecraft. Это ранняя разработка ChatSorter 2.0 на основе стабильных исходников 1.4.5. Сейчас ведётся только ветка Minecraft **1.21.11**.
 
@@ -49,4 +49,4 @@
 Это alpha-сборка для разработки, а не готовый релиз для игры. Требуются Minecraft 1.21.11, JDK 21, Fabric Loader и Fabric API для 1.21.11.
 
 Сборка: `gradle build`  
-Ожидаемый JAR: `build/libs/chatsorter-2.0.0-alpha.13.jar`
+Ожидаемый JAR: `build/libs/chatsorter-2.0.0-alpha.19.jar`
