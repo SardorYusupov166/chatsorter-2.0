@@ -146,7 +146,7 @@ public abstract class ChatScreenMixin extends Screen {
     // Vanilla hit testing redraws text into a ClickHandler without a DrawContext.
     // Its pointer must be moved back to the original chat origin.
     @org.spongepowered.asm.mixin.injection.ModifyArgs(method = "mouseClicked", at = @At(value = "INVOKE",
-        target = "Lnet/minecraft/client/font/DrawnTextConsumer$ClickHandler;<init>(Lnet/minecraft/client/font/TextRenderer;II)V"))
+        target = "Lnet/minecraft/client/font/DrawnTextConsumer$ClickHandler;<init>(Lnet/minecraft/client/font/TextRenderer;II)V"), require = 0)
     private void chatsorter$offsetClick(org.spongepowered.asm.mixin.injection.invoke.arg.Args args) {
         int originX = chatsorter$activeClickHud != null && ChatPanelManager.isPanelHud(chatsorter$activeClickHud)
             ? ChatPanelManager.offsetX(chatsorter$activeClickHud) : ChatPosition.x;
