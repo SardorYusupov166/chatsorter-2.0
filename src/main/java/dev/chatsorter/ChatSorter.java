@@ -2,17 +2,16 @@ package dev.chatsorter;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.GuiMessageTag;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MessageSignature;
+import net.minecraft.network.chat.Style;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.hud.ChatHud;
-import net.minecraft.client.gui.hud.MessageIndicator;
-import net.minecraft.network.message.MessageSignatureData;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.Instant;
@@ -46,7 +45,7 @@ public class ChatSorter implements ClientModInitializer {
     private static ChatHistoryEntry lastReceivedEntry;
     private static int customFilterOffset;
     private static boolean favoritesEnabled;
-    private static final IdentityHashMap<Text, ChatHistoryEntry> HUD_ENTRIES = new IdentityHashMap<>();
+    private static final IdentityHashMap<Component, ChatHistoryEntry> HUD_ENTRIES = new IdentityHashMap<>();
     private static final ChatMessageStore MESSAGE_STORE = new ChatMessageStore();
     public static final int[] unread = new int[Tab.values().length];
 
@@ -174,15 +173,15 @@ public class ChatSorter implements ClientModInitializer {
     public static void refreshChatFromFilters() { refreshChat(); }
 
     private static void refreshChat() {
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
-        ChatHud hud = mc.inGameHud.getChatHud();
+        ChatComponent hud = mc.gui.getChat();
         replaying = true;
         HUD_ENTRIES.clear();
         try {
-            hud.clear(false);
+            hud.clearMessages(false);
             for (ChatHistoryEntry entry : filteredEntriesForCurrentView()) {
-                Text display = entry.displayText();
+                Component display = entry.displayText();
                 HUD_ENTRIES.put(display, entry);
                 hud.addMessage(display);
             }
@@ -201,23 +200,23 @@ public class ChatSorter implements ClientModInitializer {
         AlertHotkey.load();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             AlertHotkey.tick(client);
-            if (client.player != null && client.currentScreen == null && AlertHotkey.needsSetup()) AlertHotkey.prompt();
+            if (client.player != null && client.screen == null && AlertHotkey.needsSetup()) AlertHotkey.prompt();
         });
         HudRenderCallback.EVENT.register((context, tickCounter) -> {
             int unreadDm = unread[Tab.DM.ordinal()];
             if (unreadDm <= 0) return;
-            MinecraftClient mc = MinecraftClient.getInstance();
-            if (mc.player == null || mc.options.hudHidden) return;
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player == null || mc.options.hideGui) return;
             String label = "ЛС: " + unreadDm + " непрочитанных";
-            int textWidth = mc.textRenderer.getWidth(label);
-            int right = context.getScaledWindowWidth() - 6;
-            int top = mc.currentScreen instanceof net.minecraft.client.gui.screen.ChatScreen ? 29 : 7;
+            int textWidth = mc.font.width(label);
+            int right = context.guiWidth() - 6;
+            int top = mc.screen instanceof net.minecraft.client.gui.screens.ChatScreen ? 29 : 7;
             context.fill(right - textWidth - 14, top, right, top + 18, 0xDD292D32);
             context.fill(right - textWidth - 14, top, right - textWidth - 11, top + 18, ChatTheme.bright());
-            context.drawTextWithShadow(mc.textRenderer, label, right - textWidth - 7, top + 5, 0xFFFFFFFF);
+            context.drawString(mc.font, label, right - textWidth - 7, top + 5, 0xFFFFFFFF);
         });
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            String server = client.getCurrentServerEntry() == null ? "singleplayer_or_unknown" : client.getCurrentServerEntry().address;
+            String server = client.getCurrentServer() == null ? "singleplayer_or_unknown" : client.getCurrentServer().ip;
             activeSessionId = UUID.randomUUID().toString();
             ChatSorterDiagnostics.startSession(server);
             client.execute(() -> {
@@ -225,15 +224,15 @@ public class ChatSorter implements ClientModInitializer {
                 openServerHistory(server);
                 ChatBookmarks.load(activeServerKey);
                 refreshChat();
-                client.inGameHud.getChatHud().addMessage(Text.literal("[ChatSorter] Мод успешно загружен!").styled(style -> style.withColor(0x55FF55)));
-                client.inGameHud.getChatHud().addMessage(Text.literal("[ChatSorter] Режим RPG: "
+                client.gui.getChat().addMessage(Component.literal("[ChatSorter] Мод успешно загружен!").withStyle(style -> style.withColor(0x55FF55)));
+                client.gui.getChat().addMessage(Component.literal("[ChatSorter] Режим RPG: "
                     + (ChatExperienceSettings.rpgModeEnabled ? "ВКЛ — мировые голограммы активны" : "ВЫКЛ — включите в настройках уведомлений → настройках чата"))
-                    .styled(style -> style.withColor(ChatExperienceSettings.rpgModeEnabled ? 0xFF9BE8FF : 0xFFFFC56B)));
-                client.inGameHud.getChatHud().addMessage(Text.literal("Автор: ").styled(style -> style.withColor(0xFFCC55))
-                    .append(Text.literal("mlpgod").styled(style -> style.withColor(0xFFFFFF))));
-                client.inGameHud.getChatHud().addMessage(Text.literal("Сервер: ").styled(style -> style.withColor(0xFFCC55))
-                    .append(Text.literal("MigosMC").styled(style -> style.withColor(0xFFFFFF))));
-                client.inGameHud.getChatHud().addMessage(Text.literal("ChatSorter " + VERSION + " | mlpgod - MigosMC").styled(style -> style.withColor(0xAAAAAA)));
+                    .withStyle(style -> style.withColor(ChatExperienceSettings.rpgModeEnabled ? 0xFF9BE8FF : 0xFFFFC56B)));
+                client.gui.getChat().addMessage(Component.literal("Автор: ").withStyle(style -> style.withColor(0xFFCC55))
+                    .append(Component.literal("mlpgod").withStyle(style -> style.withColor(0xFFFFFF))));
+                client.gui.getChat().addMessage(Component.literal("Сервер: ").withStyle(style -> style.withColor(0xFFCC55))
+                    .append(Component.literal("MigosMC").withStyle(style -> style.withColor(0xFFFFFF))));
+                client.gui.getChat().addMessage(Component.literal("ChatSorter " + VERSION + " | mlpgod - MigosMC").withStyle(style -> style.withColor(0xAAAAAA)));
             });
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
@@ -259,8 +258,8 @@ public class ChatSorter implements ClientModInitializer {
         refreshChat();
     }
 
-    public static boolean capture(Text message) { return capture(message, null, null); }
-    public static boolean capture(Text message, MessageSignatureData signature, MessageIndicator indicator) {
+    public static boolean capture(Component message) { return capture(message, null, null); }
+    public static boolean capture(Component message, MessageSignature signature, GuiMessageTag indicator) {
         if (replaying || ChatPanelManager.rebuilding()) return true;
         String raw = message.getString();
         boolean internal = raw.startsWith("[ChatSorter]") || raw.startsWith("Автор: ")
@@ -317,7 +316,7 @@ public class ChatSorter implements ClientModInitializer {
         List<ChatHistoryEntry> evicted = MESSAGE_STORE.add(entry, MAX_CHAT_HISTORY);
         if (!evicted.isEmpty()) HUD_ENTRIES.values().removeIf(evicted::contains);
     }
-    private static ChatMessageRecord sourceRecord(Text message, String raw, Tab tab, String sender, Set<String> customCategories) {
+    private static ChatMessageRecord sourceRecord(Component message, String raw, Tab tab, String sender, Set<String> customCategories) {
         String senderId = sender == null || sender.isBlank() ? "" : sender.strip().toLowerCase(Locale.ROOT);
         java.util.LinkedHashSet<String> categories = new java.util.LinkedHashSet<>();
         categories.add(tab.name()); categories.addAll(customCategories);
@@ -357,7 +356,7 @@ public class ChatSorter implements ClientModInitializer {
         refreshChat();
     }
 
-    public static ChatHistoryEntry entryForHudMessage(Text message) {
+    public static ChatHistoryEntry entryForHudMessage(Component message) {
         ChatHistoryEntry entry = HUD_ENTRIES.get(message);
         return entry != null ? entry : ChatPanelManager.entryForHudMessage(message);
     }
@@ -371,7 +370,7 @@ public class ChatSorter implements ClientModInitializer {
         Arrays.fill(unread, 0);
         refreshChat();
     }
-    public static String copyText(Text text) {
+    public static String copyText(Component text) {
         ChatHistoryEntry entry = HUD_ENTRIES.get(text);
         return entry == null ? text.getString() : copyText(entry);
     }
@@ -397,14 +396,14 @@ public class ChatSorter implements ClientModInitializer {
         Matcher matcher = URL.matcher(entry.message.getString());
         return matcher.find() ? matcher.group().replaceAll("[),.!?]+$", "") : "";
     }
-    private static String componentJson(Text text) {
+    private static String componentJson(Component text) {
         String json = ChatHistoryStorage.serializeText(text);
         return json.isBlank() ? text.getString() : json;
     }
     private static String legacyCodes(Style style) {
         StringBuilder b = new StringBuilder();
         if (style.getColor() != null) {
-            int rgb = style.getColor().getRgb();
+            int rgb = style.getColor().getValue();
             String hex = String.format(Locale.ROOT, "%06x", rgb & 0xFFFFFF);
             b.append("§x"); for (char c : hex.toCharArray()) b.append('§').append(c);
         }
@@ -474,7 +473,7 @@ public class ChatSorter implements ClientModInitializer {
             if (enabledFilters[tab.ordinal()]) unread[tab.ordinal()] = 0;
             if (allFiltersEnabled()) Arrays.fill(unread, 0);
         }
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         refreshChat();
     }

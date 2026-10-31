@@ -1,18 +1,17 @@
 package dev.chatsorter;
 
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
 import java.util.List;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 
 /** Full-screen notification settings: keywords, persistent played-alert history, and sound. */
 public final class AlertSettingsScreen extends Screen {
     private final Screen parent;
-    private TextFieldWidget input;
-    private TextFieldWidget soundSearch;
+    private EditBox input;
+    private EditBox soundSearch;
     private boolean soundPickerOpen;
     private boolean draggingVolume;
     private boolean draggingRestoreLimit;
@@ -25,7 +24,7 @@ public final class AlertSettingsScreen extends Screen {
     private static final int DARK = 0xD625282D, PANEL = 0xB52A2E33;
     private static final String[] RPG_PANEL_POSITIONS = {"По центру", "Слева", "Справа", "Сверху", "Снизу"};
     private static int green(){return ChatTheme.accent();}
-    public AlertSettingsScreen(Screen parent) { super(Text.literal("ChatSorter — Уведомления")); this.parent = parent; }
+    public AlertSettingsScreen(Screen parent) { super(Component.literal("ChatSorter — Уведомления")); this.parent = parent; }
     private int leftX() { return 12; }
     private int leftW() { return Math.max(120, width / 2 - 26); }
     private int rightX() { return width / 2 + 10; }
@@ -45,27 +44,27 @@ public final class AlertSettingsScreen extends Screen {
     private int historyRows() { return Math.max(1, (historyBottom() - historyTop() - 19) / 24); }
     @Override protected void init() {
         int w = leftW();
-        input = new TextFieldWidget(textRenderer, leftX() + 8, 59, Math.max(35, w - 115), 20, Text.literal("Новое слово"));
+        input = new EditBox(font, leftX() + 8, 59, Math.max(35, w - 115), 20, Component.literal("Новое слово"));
         input.setMaxLength(80);
-        input.setPlaceholder(Text.literal("Слово или фраза..."));
-        addDrawableChild(input);
+        input.setHint(Component.literal("Слово или фраза..."));
+        addRenderableWidget(input);
         history = NotificationHistory.load();
-        soundSearch = new TextFieldWidget(textRenderer, rightX()+22, 114, Math.max(60,rightW()-44), 20, Text.literal("Поиск звука"));
+        soundSearch = new EditBox(font, rightX()+22, 114, Math.max(60,rightW()-44), 20, Component.literal("Поиск звука"));
         soundSearch.setMaxLength(100);
-        soundSearch.setPlaceholder(Text.literal("Поиск по русскому названию или ID..."));
+        soundSearch.setHint(Component.literal("Поиск по русскому названию или ID..."));
         soundSearch.setVisible(false);
-        addDrawableChild(soundSearch);
+        addRenderableWidget(soundSearch);
     }
-    private void button(DrawContext c, String label, int x, int y, int w, int h, int mx, int my) {
+    private void button(GuiGraphics c, String label, int x, int y, int w, int h, int mx, int my) {
         boolean hover = mx >= x && mx < x+w && my >= y && my < y+h;
         c.fill(x,y,x+w,y+h,hover ? green() : DARK);
-        c.drawCenteredTextWithShadow(textRenderer,label,x+w/2,y+(h-8)/2,0xFFFFFFFF);
+        c.drawCenteredString(font,label,x+w/2,y+(h-8)/2,0xFFFFFFFF);
     }
-    private void panel(DrawContext c, int x, int y, int w, int h) {
+    private void panel(GuiGraphics c, int x, int y, int w, int h) {
         c.fill(x,y,x+w,y+h,PANEL);
         c.fill(x,y,x+w,y+1,0xFF53605A);
     }
-    private void scrollbar(DrawContext c,int x,int top,int bottom,int count,int rows,int scroll) {
+    private void scrollbar(GuiGraphics c,int x,int top,int bottom,int count,int rows,int scroll) {
         if(count<=rows || bottom<=top) return;
         int h=Math.max(12,(bottom-top)*rows/count);
         int y=top+(bottom-top-h)*scroll/Math.max(1,count-rows);
@@ -99,26 +98,26 @@ public final class AlertSettingsScreen extends Screen {
         int value=(int)Math.round((100+fraction*(5_000-100))/100.0)*100;
         ChatExperienceSettings.chatDisplayLimit=ChatExperienceSettings.clampDisplayLimit(value);
     }
-    @Override public void render(DrawContext c, int mx, int my, float delta) {
+    @Override public void render(GuiGraphics c, int mx, int my, float delta) {
         c.fill(0,0,width,height,0xEE14181D);
         c.fill(0,0,width,39,green());
-        c.drawCenteredTextWithShadow(textRenderer,"Настройки ChatSorter",width/2,15,0xFFFFFFFF);
+        c.drawCenteredString(font,"Настройки ChatSorter",width/2,15,0xFFFFFFFF);
         int lx=leftX(), lw=leftW(), rx=rightX(), rw=rightW();
         panel(c,lx,47,lw,40);
         button(c,"+ Добавить",lx+lw-99,59,91,20,mx,my);
         panel(c,lx,92,lw,listBottom()-92);
-        c.drawTextWithShadow(textRenderer,"Белый список",lx+8,96,ChatTheme.text());
+        c.drawString(font,"Белый список",lx+8,96,ChatTheme.text());
         List<String> words=KeywordAlerts.words();
         wordScroll=Math.min(wordScroll,Math.max(0,words.size()-wordRows()));
         for(int i=0;i<wordRows() && i+wordScroll<words.size();i++) {
             int y=listTop()+i*22;
             c.fill(lx+6,y,lx+lw-7,y+20,0xAA1A2026);
-            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth(words.get(i+wordScroll),Math.max(10,lw-67)),lx+12,y+6,0xFFE2E5E2);
+            c.drawString(font,font.plainSubstrByWidth(words.get(i+wordScroll),Math.max(10,lw-67)),lx+12,y+6,0xFFE2E5E2);
             button(c,"×",lx+lw-36,y+1,23,18,mx,my);
         }
         scrollbar(c,lx+lw-3,listTop(),listBottom()-5,words.size(),wordRows(),wordScroll);
         panel(c,lx,historyTop(),lw,historyBottom()-historyTop());
-        c.drawTextWithShadow(textRenderer,"История уведомлений ("+history.size()+")",lx+8,historyTop()+5,ChatTheme.text());
+        c.drawString(font,"История уведомлений ("+history.size()+")",lx+8,historyTop()+5,ChatTheme.text());
         int rows=historyRows();
         historyScroll=Math.min(historyScroll,Math.max(0,history.size()-rows));
         for(int i=0;i<rows && i+historyScroll<history.size();i++) {
@@ -126,26 +125,26 @@ public final class AlertSettingsScreen extends Screen {
             int y=historyTop()+19+i*24;
             c.fill(lx+6,y,lx+lw-7,y+22,e==selected ? green() : 0xAA1A2026);
             String shortTime=e.time().length()>10 ? e.time().substring(11,Math.min(19,e.time().length())) : e.time();
-            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth(shortTime+" · "+e.keyword(),lw-20),lx+11,y+2,0xFFFFFFFF);
-            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth(e.message(),lw-20),lx+11,y+12,0xFFB6C2BD);
+            c.drawString(font,font.plainSubstrByWidth(shortTime+" · "+e.keyword(),lw-20),lx+11,y+2,0xFFFFFFFF);
+            c.drawString(font,font.plainSubstrByWidth(e.message(),lw-20),lx+11,y+12,0xFFB6C2BD);
         }
         scrollbar(c,lx+lw-3,historyTop()+19,historyBottom()-4,history.size(),rows,historyScroll);
         panel(c,rx,47,rw,40);
-        c.drawCenteredTextWithShadow(textRenderer,"Настройки уведомлений",rx+rw/2,63,ChatTheme.text());
+        c.drawCenteredString(font,"Настройки уведомлений",rx+rw/2,63,ChatTheme.text());
         panel(c,rx,92,rw,historyBottom()-92);
         settingsScroll=Math.max(0,Math.min(settingsScroll,maxSettingsScroll()));
         int sx=rx+12, sw=rw-24, oy=settingsTop()-settingsScroll;
         c.enableScissor(rx+2,settingsTop(),rx+rw-2,settingsBottom());
-        c.drawTextWithShadow(textRenderer,"Громкость: "+Math.round(KeywordAlerts.volume()*100)+"%",sx,oy,0xFFFFFFFF);
+        c.drawString(font,"Громкость: "+Math.round(KeywordAlerts.volume()*100)+"%",sx,oy,0xFFFFFFFF);
         c.fill(sx,oy+23,sx+sw,oy+37,0xFF30373B);
         c.fill(sx,oy+23,sx+Math.round(sw*KeywordAlerts.volume()),oy+37,ChatTheme.bright());
-        c.drawTextWithShadow(textRenderer,"Звук из Minecraft",sx,oy+62,0xFFFFFFFF);
-        button(c,textRenderer.trimToWidth(KeywordAlerts.soundId() + "  ▼",Math.max(30,sw-18)),sx,oy+85,sw,23,mx,my);
+        c.drawString(font,"Звук из Minecraft",sx,oy+62,0xFFFFFFFF);
+        button(c,font.plainSubstrByWidth(KeywordAlerts.soundId() + "  ▼",Math.max(30,sw-18)),sx,oy+85,sw,23,mx,my);
         button(c,"▶ Прослушать",sx,oy+123,Math.min(sw,150),23,mx,my);
-        c.drawTextWithShadow(textRenderer,"Отдельная громкость, независимо от Minecraft",sx,oy+164,0xFFAAAAAA);
-        c.drawTextWithShadow(textRenderer,"Свои сообщения игнорируются",sx,oy+180,0xFFAAAAAA);
+        c.drawString(font,"Отдельная громкость, независимо от Minecraft",sx,oy+164,0xFFAAAAAA);
+        c.drawString(font,"Свои сообщения игнорируются",sx,oy+180,0xFFAAAAAA);
         button(c,"Тема: " + ChatTheme.name(),sx,oy+205,Math.min(sw,190),23,mx,my);
-        c.drawTextWithShadow(textRenderer,"Цвет подсветки строки уведомления",sx,oy+232,0xFFFFFFFF);
+        c.drawString(font,"Цвет подсветки строки уведомления",sx,oy+232,0xFFFFFFFF);
         int alertColorSize=18, alertColorGap=5, alertColorStep=alertColorSize+alertColorGap;
         int alertColorCount=KeywordAlerts.highlightColorCount();
         int alertColorColumns=Math.max(1,Math.min(alertColorCount,(sw+alertColorGap)/alertColorStep));
@@ -157,22 +156,22 @@ public final class AlertSettingsScreen extends Screen {
             c.fill(cx,cy,cx+alertColorSize,cy+alertColorSize,
                 0xFF000000 | (KeywordAlerts.highlightColorAt(color)&0x00FFFFFF));
         }
-        c.drawTextWithShadow(textRenderer,"Клавиша уведомлений: " + AlertHotkey.keyName(),sx,oy+297,0xFFFFFFFF);
+        c.drawString(font,"Клавиша уведомлений: " + AlertHotkey.keyName(),sx,oy+297,0xFFFFFFFF);
         button(c,"Сменить клавишу",sx,oy+315,Math.min(sw,160),22,mx,my);
-        c.drawTextWithShadow(textRenderer,"Настройки чата",sx,oy+351,ChatTheme.text());
+        c.drawString(font,"Настройки чата",sx,oy+351,ChatTheme.text());
         button(c,"Объединять повторы: " + (ChatExperienceSettings.mergeRepeats ? "Вкл." : "Выкл."),sx,oy+369,sw,22,mx,my);
         button(c,"Восстанавливать историю: " + (ChatExperienceSettings.restoreHistory ? "Вкл." : "Выкл."),sx,oy+396,sw,22,mx,my);
-        c.drawTextWithShadow(textRenderer,"Лимит восстановления: " + ChatExperienceSettings.restoreLimit,sx,oy+423,0xFFFFFFFF);
+        c.drawString(font,"Лимит восстановления: " + ChatExperienceSettings.restoreLimit,sx,oy+423,0xFFFFFFFF);
         c.fill(sx,oy+442,sx+sw,oy+452,0xFF30373B);
         c.fill(sx,oy+442,sx+(int)Math.round(sw*restoreLimitFraction()),oy+452,ChatTheme.bright());
         int limitKnobX=sx+(int)Math.round(sw*restoreLimitFraction());
         c.fill(limitKnobX-2,oy+438,limitKnobX+3,oy+456,0xFFFFFFFF);
-        c.drawTextWithShadow(textRenderer,"Лимит чата при фильтрации: " + ChatExperienceSettings.chatDisplayLimit,sx,oy+462,0xFFFFFFFF);
+        c.drawString(font,"Лимит чата при фильтрации: " + ChatExperienceSettings.chatDisplayLimit,sx,oy+462,0xFFFFFFFF);
         c.fill(sx,oy+481,sx+sw,oy+491,0xFF30373B);
         c.fill(sx,oy+481,sx+(int)Math.round(sw*chatDisplayLimitFraction()),oy+491,ChatTheme.bright());
         int chatLimitKnobX=sx+(int)Math.round(sw*chatDisplayLimitFraction());
         c.fill(chatLimitKnobX-2,oy+477,chatLimitKnobX+3,oy+495,0xFFFFFFFF);
-        c.drawTextWithShadow(textRenderer,"Последние сообщения, выводимые при смене фильтра (100–5000).",sx,oy+498,0xFFAAAAAA);
+        c.drawString(font,"Последние сообщения, выводимые при смене фильтра (100–5000).",sx,oy+498,0xFFAAAAAA);
         button(c,"Очистить историю этого сервера",sx,oy+516,sw,22,mx,my);
         button(c,"Пользовательские фильтры Regex",sx,oy+543,sw,22,mx,my);
         button(c,"Управление стандартными фильтрами",sx,oy+570,sw,22,mx,my);
@@ -186,15 +185,15 @@ public final class AlertSettingsScreen extends Screen {
         }
         if(selected!=null) {
             int detailOffset = ChatExperienceSettings.rpgModeEnabled ? 162 : 0;
-            c.drawTextWithShadow(textRenderer,"Выбранное уведомление",sx,oy+602+detailOffset,ChatTheme.text());
-            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Время: "+selected.time(),sw),sx,oy+622+detailOffset,0xFFFFFFFF);
-            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth("Слово: "+selected.keyword(),sw),sx,oy+638+detailOffset,0xFFFFFFFF);
-            c.drawTextWithShadow(textRenderer,"Полное сообщение:",sx,oy+658+detailOffset,0xFFFFFFFF);
+            c.drawString(font,"Выбранное уведомление",sx,oy+602+detailOffset,ChatTheme.text());
+            c.drawString(font,font.plainSubstrByWidth("Время: "+selected.time(),sw),sx,oy+622+detailOffset,0xFFFFFFFF);
+            c.drawString(font,font.plainSubstrByWidth("Слово: "+selected.keyword(),sw),sx,oy+638+detailOffset,0xFFFFFFFF);
+            c.drawString(font,"Полное сообщение:",sx,oy+658+detailOffset,0xFFFFFFFF);
             String msg=selected.message();
             int maxChars=Math.max(8,sw/6);
             for(int i=0;i<Math.min(12,(msg.length()+maxChars-1)/maxChars);i++) {
                 int start=i*maxChars;
-                c.drawTextWithShadow(textRenderer,msg.substring(start,Math.min(msg.length(),start+maxChars)),sx,oy+675+detailOffset+i*12,0xFFE2E5E2);
+                c.drawString(font,msg.substring(start,Math.min(msg.length(),start+maxChars)),sx,oy+675+detailOffset+i*12,0xFFE2E5E2);
             }
         }
         c.disableScissor();
@@ -254,7 +253,7 @@ public final class AlertSettingsScreen extends Screen {
         return Character.toUpperCase(result.charAt(0)) + result.substring(1);
     }
     private List<String> filteredSounds() {
-        String filter = soundSearch.getText().strip().toLowerCase(java.util.Locale.ROOT);
+        String filter = soundSearch.getValue().strip().toLowerCase(java.util.Locale.ROOT);
         return KeywordAlerts.sounds().stream().filter(id ->
             (soundCategory == 0 || category(id).equals(CATEGORIES[soundCategory])) &&
             (filter.isEmpty() || id.toLowerCase(java.util.Locale.ROOT).contains(filter) ||
@@ -265,19 +264,19 @@ public final class AlertSettingsScreen extends Screen {
     private int pickerW() { return width-pickerX()*2; }
     private int pickerH() { return height-pickerY()*2; }
     private int pickerRows() { return Math.max(1,(pickerH()-112)/34); }
-    private void renderSoundPicker(DrawContext c,int mx,int my) {
+    private void renderSoundPicker(GuiGraphics c,int mx,int my) {
         int x=pickerX(),y=pickerY(),w=pickerW(),h=pickerH();
         c.fill(0,0,width,height,0xCC080A0D);
         c.fill(x,y,x+w,y+h,0xFF252A30);
         c.fill(x,y,x+w,y+2,ChatTheme.accent());
-        c.drawCenteredTextWithShadow(textRenderer,"Все звуки Minecraft ("+KeywordAlerts.sounds().size()+")",x+w/2,y+11,0xFFFFFFFF);
+        c.drawCenteredString(font,"Все звуки Minecraft ("+KeywordAlerts.sounds().size()+")",x+w/2,y+11,0xFFFFFFFF);
         soundSearch.setX(x+12);soundSearch.setY(y+31);soundSearch.setWidth(w-24);
         int cx=x+12;
         for (int i=0;i<CATEGORIES.length;i++) {
-            int cw=textRenderer.getWidth(CATEGORIES[i])+16;
+            int cw=font.width(CATEGORIES[i])+16;
             if(cx+cw>x+w-12) break;
             c.fill(cx,y+57,cx+cw,y+76,i==soundCategory?ChatTheme.accent():0xFF363D45);
-            c.drawCenteredTextWithShadow(textRenderer,CATEGORIES[i],cx+cw/2,y+62,0xFFFFFFFF);
+            c.drawCenteredString(font,CATEGORIES[i],cx+cw/2,y+62,0xFFFFFFFF);
             cx+=cw+4;
         }
         List<String> found=filteredSounds();
@@ -287,15 +286,15 @@ public final class AlertSettingsScreen extends Screen {
             int ry=y+84+i*34;
             String id=found.get(i+soundPickerScroll);
             c.fill(x+12,ry,x+w-12,ry+33,id.equals(KeywordAlerts.soundId())?ChatTheme.accent():((mx>=x+12&&mx<x+w-12&&my>=ry&&my<ry+19)?0xFF404A55:0xFF30363E));
-            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth(soundName(id),w-43),x+19,ry+4,0xFFFFFFFF);
-            c.drawTextWithShadow(textRenderer,textRenderer.trimToWidth(id,w-43),x+19,ry+18,0xFFB0BAC4);
+            c.drawString(font,font.plainSubstrByWidth(soundName(id),w-43),x+19,ry+4,0xFFFFFFFF);
+            c.drawString(font,font.plainSubstrByWidth(id,w-43),x+19,ry+18,0xFFB0BAC4);
         }
         c.disableScissor();
-        c.drawTextWithShadow(textRenderer,"Найдено: "+found.size()+"  •  Нажмите для выбора и прослушивания",x+12,y+h-24,0xFFB8C0C8);
+        c.drawString(font,"Найдено: "+found.size()+"  •  Нажмите для выбора и прослушивания",x+12,y+h-24,0xFFB8C0C8);
         button(c,"Закрыть",x+w-100,y+h-29,88,22,mx,my);
         soundSearch.render(c,mx,my,0);
     }
-    @Override public boolean mouseClicked(Click click, boolean doubled) {
+    @Override public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
         double x=click.x(), y=click.y();
         if(soundPickerOpen) {
             if(click.button()==0) {
@@ -304,7 +303,7 @@ public final class AlertSettingsScreen extends Screen {
                 if(y>=py+57 && y<py+76) {
                     int cx=px+12;
                     for(int i=0;i<CATEGORIES.length;i++) {
-                        int cw=textRenderer.getWidth(CATEGORIES[i])+16;
+                        int cw=font.width(CATEGORIES[i])+16;
                         if(cx+cw>px+pw-12) break;
                         if(x>=cx && x<cx+cw) {soundCategory=i;soundPickerScroll=0;return true;}
                         cx+=cw+4;
@@ -321,9 +320,9 @@ public final class AlertSettingsScreen extends Screen {
         }
         if(click.button()==0) {
             int lx=leftX(), lw=leftW(), rx=rightX(), rw=rightW(), sx=rx+12, sw=rw-24, oy=settingsTop()-settingsScroll;
-            if(x>=width-112 && x<width-20 && y>=height-29 && y<height-8) { close(); return true; }
+            if(x>=width-112 && x<width-20 && y>=height-29 && y<height-8) { onClose(); return true; }
             if(x>=lx+lw-99 && x<lx+lw-8 && y>=59 && y<79) {
-                if(KeywordAlerts.add(input.getText())) { input.setText(""); wordScroll=Math.max(0,KeywordAlerts.words().size()-wordRows()); }
+                if(KeywordAlerts.add(input.getValue())) { input.setValue(""); wordScroll=Math.max(0,KeywordAlerts.words().size()-wordRows()); }
                 return true;
             }
             if(x>=lx+lw-36 && x<lx+lw-13 && y>=listTop() && y<listBottom()) {
@@ -348,7 +347,7 @@ public final class AlertSettingsScreen extends Screen {
                     return true;
                 }
             }
-            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+Math.min(sw,160) && y>=oy+315 && y<oy+337) { client.setScreen(new HotkeySetupScreen(this)); return true; }
+            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+Math.min(sw,160) && y>=oy+315 && y<oy+337) { minecraft.setScreen(new HotkeySetupScreen(this)); return true; }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+369 && y<oy+391) {
                 ChatExperienceSettings.mergeRepeats=!ChatExperienceSettings.mergeRepeats; ChatExperienceSettings.save(); return true;
             }
@@ -369,10 +368,10 @@ public final class AlertSettingsScreen extends Screen {
                 return true;
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+543 && y<oy+565) {
-                client.setScreen(new UserFiltersScreen(this)); return true;
+                minecraft.setScreen(new UserFiltersScreen(this)); return true;
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+570 && y<oy+592) {
-                client.setScreen(new StandardFiltersScreen(this)); return true;
+                minecraft.setScreen(new StandardFiltersScreen(this)); return true;
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+597 && y<oy+619) {
                 ChatExperienceSettings.rpgModeEnabled=!ChatExperienceSettings.rpgModeEnabled; ChatExperienceSettings.save();
@@ -391,14 +390,14 @@ public final class AlertSettingsScreen extends Screen {
                 return true;
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+85 && y<oy+108) {
-                soundPickerOpen=true; soundPickerScroll=0; soundCategory=0; soundSearch.setText(""); soundSearch.setVisible(true);
+                soundPickerOpen=true; soundPickerScroll=0; soundCategory=0; soundSearch.setValue(""); soundSearch.setVisible(true);
                 return true;
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+Math.min(sw,150) && y>=oy+123 && y<oy+146) { KeywordAlerts.preview(); return true; }
         }
         return super.mouseClicked(click,doubled);
     }
-    @Override public boolean mouseDragged(Click click, double offsetX, double offsetY) {
+    @Override public boolean mouseDragged(MouseButtonEvent click, double offsetX, double offsetY) {
         if(draggingChatDisplayLimit && click.button()==0) {
             setChatDisplayLimitAt(click.x());
             return true;
@@ -413,7 +412,7 @@ public final class AlertSettingsScreen extends Screen {
         }
         return super.mouseDragged(click,offsetX,offsetY);
     }
-    @Override public boolean mouseReleased(Click click) {
+    @Override public boolean mouseReleased(MouseButtonEvent click) {
         if(draggingChatDisplayLimit && click.button()==0) {
             setChatDisplayLimitAt(click.x());
             draggingChatDisplayLimit=false;
@@ -449,10 +448,10 @@ public final class AlertSettingsScreen extends Screen {
         settingsScroll=Math.max(0,Math.min(maxSettingsScroll(),settingsScroll-step*16));
         return true;
     }
-    @Override public void close() {
+    @Override public void onClose() {
         if(draggingRestoreLimit) ChatExperienceSettings.save();
         draggingRestoreLimit=false;
         draggingVolume=false;
-        client.setScreen(parent);
+        minecraft.setScreen(parent);
     }
 }

@@ -6,15 +6,7 @@ import dev.chatsorter.KeywordAlerts;
 import dev.chatsorter.ChatPanelManager;
 import dev.chatsorter.ChatBackgrounds;
 import dev.chatsorter.ChatRpgRenderer;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.hud.ChatHud;
-import net.minecraft.client.gui.hud.ChatHudLine;
-import net.minecraft.client.gui.hud.MessageIndicator;
-import net.minecraft.network.message.MessageSignatureData;
-import net.minecraft.text.Text;
 import dev.chatsorter.ChatPosition;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.font.TextRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,31 +15,39 @@ import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.List;
+import net.minecraft.client.GuiMessage;
+import net.minecraft.client.GuiMessageTag;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MessageSignature;
 
-@Mixin(ChatHud.class)
+@Mixin(ChatComponent.class)
 public abstract class ChatHudMixin {
     @org.spongepowered.asm.mixin.Unique private boolean chatsorter$matrixPushed;
     @org.spongepowered.asm.mixin.Unique private boolean chatsorter$panelsRendered;
     // Minecraft's vanilla chat keeps only 100 messages and wrapped visual lines.
     // Raise both caps locally so other players do not need an additional mod.
-    @ModifyConstant(method = "addMessage(Lnet/minecraft/client/gui/hud/ChatHudLine;)V", constant = @Constant(intValue = 100))
+    @ModifyConstant(method = "addMessageToQueue(Lnet/minecraft/client/GuiMessage;)V", constant = @Constant(intValue = 100))
     private int chatsorter$expandMessageHistory(int original) {
         return ChatSorter.maxChatHistory();
     }
 
-    @ModifyConstant(method = "addVisibleMessage(Lnet/minecraft/client/gui/hud/ChatHudLine;)V", constant = @Constant(intValue = 100))
+    @ModifyConstant(method = "addMessageToDisplayQueue(Lnet/minecraft/client/GuiMessage;)V", constant = @Constant(intValue = 100))
     private int chatsorter$expandVisibleHistory(int original) {
         return ChatSorter.maxChatHistory();
     }
 
-    @ModifyConstant(method = "addToMessageHistory(Ljava/lang/String;)V", constant = @Constant(intValue = 100))
+    @ModifyConstant(method = "addRecentChat(Ljava/lang/String;)V", constant = @Constant(intValue = 100))
     private int chatsorter$expandInputHistory(int original) {
         return ChatSorter.maxChatHistory();
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("HEAD"), cancellable = true)
-    private void chatsorter$translate(DrawContext context, TextRenderer textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
-        ChatHud hud = (ChatHud)(Object)this;
+    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/gui/Font;IIIZZ)V", at = @At("HEAD"), cancellable = true)
+    private void chatsorter$translate(GuiGraphics context, Font textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
+        ChatComponent hud = (ChatComponent)(Object)this;
         chatsorter$panelsRendered = false;
         if (dev.chatsorter.ChatWorldRenderer.shouldHideScreenChat(hud)) {
             chatsorter$matrixPushed = false;
@@ -57,26 +57,26 @@ public abstract class ChatHudMixin {
             ci.cancel();
             return;
         }
-        context.getMatrices().pushMatrix();
+        context.pose().pushMatrix();
         chatsorter$matrixPushed = true;
-        context.getMatrices().translate(ChatPanelManager.offsetX(hud), ChatPanelManager.offsetY(hud));
+        context.pose().translate(ChatPanelManager.offsetX(hud), ChatPanelManager.offsetY(hud));
         // A themed panel belongs to the open chat screen. The vanilla HUD keeps
         // rendering fading chat lines after ChatScreen closes, so drawing this
         // full-size background there leaves an opaque panel over the world.
         if (!chatHidden && focused) {
-            MinecraftClient mc = MinecraftClient.getInstance();
+            Minecraft mc = Minecraft.getInstance();
             int width = ChatPanelManager.width(hud);
             if (width < 0) width = ChatPosition.width > 0
-                ? ChatPosition.width : ChatHud.getWidth(mc.options.getChatWidth().getValue());
+                ? ChatPosition.width : ChatComponent.getWidth(mc.options.chatWidth().get());
             int height = ChatPanelManager.height(hud);
             if (height < 0) height = ChatPosition.height > 0
-                ? ChatPosition.height : ChatHud.getHeight(focused
-                    ? mc.options.getChatHeightFocused().getValue()
-                    : mc.options.getChatHeightUnfocused().getValue());
-            double scale = mc.options.getChatScale().getValue();
+                ? ChatPosition.height : ChatComponent.getHeight(focused
+                    ? mc.options.chatHeightFocused().get()
+                    : mc.options.chatHeightUnfocused().get());
+            double scale = mc.options.chatScale().get();
             int scaledWidth = (int)Math.round(width * scale);
             int scaledHeight = (int)Math.round(height * scale);
-            int top = mc.getWindow().getScaledHeight() - 40 - scaledHeight;
+            int top = mc.getWindow().getGuiScaledHeight() - 40 - scaledHeight;
             ChatBackgrounds.renderBackground(context, 0, top, scaledWidth, scaledHeight,
                 ChatPanelManager.background(hud), ChatPanelManager.palette(hud), ChatPanelManager.darkening(hud));
             if (ChatPanelManager.usesRpgStyle(hud)) {
@@ -85,48 +85,48 @@ public abstract class ChatHudMixin {
             }
         }
     }
-    @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V", at = @At("RETURN"))
-    private void chatsorter$restore(DrawContext context, TextRenderer textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
+    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/gui/Font;IIIZZ)V", at = @At("RETURN"))
+    private void chatsorter$restore(GuiGraphics context, Font textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
         if (chatsorter$matrixPushed) {
             if (!chatHidden) chatsorter$renderAlertHighlights(context);
-            context.getMatrices().popMatrix();
+            context.pose().popMatrix();
             chatsorter$matrixPushed = false;
         }
         chatsorter$renderPanels(context, textRenderer, currentTick, mouseX, mouseY, focused, chatHidden);
     }
 
     @org.spongepowered.asm.mixin.Unique
-    private void chatsorter$renderPanels(DrawContext context, TextRenderer textRenderer, int currentTick,
+    private void chatsorter$renderPanels(GuiGraphics context, Font textRenderer, int currentTick,
                                          int mouseX, int mouseY, boolean focused, boolean chatHidden) {
         if (!chatsorter$panelsRendered && !chatHidden && ChatPanelManager.enabled()
-                && (ChatHud)(Object)this == MinecraftClient.getInstance().inGameHud.getChatHud()) {
+                && (ChatComponent)(Object)this == Minecraft.getInstance().gui.getChat()) {
             chatsorter$panelsRendered = true;
             ChatPanelManager.render(context, textRenderer, currentTick, mouseX, mouseY, focused, false);
         }
     }
-    @Inject(method = "addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V", at = @At("HEAD"), cancellable = true)
-    private void chatsorter$sort(Text message, MessageSignatureData signature, MessageIndicator indicator, CallbackInfo ci) {
+    @Inject(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/GuiMessageTag;)V", at = @At("HEAD"), cancellable = true)
+    private void chatsorter$sort(Component message, MessageSignature signature, GuiMessageTag indicator, CallbackInfo ci) {
         if (!ChatSorter.capture(message, signature, indicator)) ci.cancel();
     }
 
-    private void chatsorter$renderAlertHighlights(DrawContext context) {
-        ChatHud hud = (ChatHud)(Object)this;
-        MinecraftClient mc = MinecraftClient.getInstance();
+    private void chatsorter$renderAlertHighlights(GuiGraphics context) {
+        ChatComponent hud = (ChatComponent)(Object)this;
+        Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
-        double scale = mc.options.getChatScale().getValue();
+        double scale = mc.options.chatScale().get();
         if (scale <= 0) return;
         ChatHudAccess access = (ChatHudAccess)hud;
-        List<ChatHudLine.Visible> lines = access.chatsorter$getVisibleMessages();
-        List<ChatHudLine> messages = access.chatsorter$getMessages();
+        List<GuiMessage.Line> lines = access.chatsorter$getVisibleMessages();
+        List<GuiMessage> messages = access.chatsorter$getMessages();
         int scroll = access.chatsorter$getScrolledLines();
-        int visibleCount = hud.getVisibleLineCount();
+        int visibleCount = hud.getLinesPerPage();
         int width = ChatPanelManager.width(hud);
         if (width < 0) width = ChatPosition.width > 0
-            ? ChatPosition.width : ChatHud.getWidth(mc.options.getChatWidth().getValue());
+            ? ChatPosition.width : ChatComponent.getWidth(mc.options.chatWidth().get());
         if (width <= 0) return;
         int right = (int)Math.ceil(width * scale);
-        double lineHeight = 9.0 * (mc.options.getChatLineSpacing().getValue() + 1.0) * scale;
-        double bottom = mc.getWindow().getScaledHeight() - 40;
+        double lineHeight = 9.0 * (mc.options.chatLineSpacing().get() + 1.0) * scale;
+        double bottom = mc.getWindow().getGuiScaledHeight() - 40;
         int row = 0, messageIndex = 0;
         while (row < lines.size()) {
             int groupStart = row;
@@ -152,14 +152,14 @@ public abstract class ChatHudMixin {
 
     @Inject(method = "getWidth()I", at = @At("HEAD"), cancellable = true)
     private void chatsorter$customWidth(CallbackInfoReturnable<Integer> cir) {
-        int panelWidth = ChatPanelManager.width((ChatHud)(Object)this);
+        int panelWidth = ChatPanelManager.width((ChatComponent)(Object)this);
         if (panelWidth >= 0) cir.setReturnValue(panelWidth);
         else if (ChatPosition.width > 0) cir.setReturnValue(ChatPosition.width);
     }
 
-    @Inject(method = "getVisibleLineCount()I", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "getLinesPerPage()I", at = @At("HEAD"), cancellable = true)
     private void chatsorter$panelVisibleLineCount(CallbackInfoReturnable<Integer> cir) {
-        int panelCount = ChatPanelManager.visibleLineCount((ChatHud)(Object)this);
+        int panelCount = ChatPanelManager.visibleLineCount((ChatComponent)(Object)this);
         if (panelCount >= 0) cir.setReturnValue(panelCount);
     }
 

@@ -1,9 +1,9 @@
 package dev.chatsorter;
 
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 
 /** Lets players hide built-in filter chips and restore them later. */
 public final class StandardFiltersScreen extends Screen {
@@ -12,21 +12,21 @@ public final class StandardFiltersScreen extends Screen {
     private static final String[] LABELS = {"Общий чат", "ЛС", "Spy", "Консоль", "Все"};
 
     public StandardFiltersScreen(Screen parent) {
-        super(Text.literal("ChatSorter — Стандартные фильтры"));
+        super(Component.literal("ChatSorter — Стандартные фильтры"));
         this.parent = parent;
     }
 
-    private void button(DrawContext context, String label, int x, int y, int w, int h, int mouseX, int mouseY, int color) {
+    private void button(GuiGraphics context, String label, int x, int y, int w, int h, int mouseX, int mouseY, int color) {
         boolean hovered = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
         context.fill(x, y, x + w, y + h, hovered ? ChatTheme.accent() : color);
-        context.drawCenteredTextWithShadow(textRenderer, label, x + w / 2, y + (h - 8) / 2, 0xFFFFFFFF);
+        context.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2, 0xFFFFFFFF);
     }
 
-    @Override public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    @Override public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
         context.fill(0, 0, width, height, 0xEE14181D);
         context.fill(0, 0, width, 38, ChatTheme.accent());
-        context.drawCenteredTextWithShadow(textRenderer, "Стандартные фильтры чата", width / 2, 14, 0xFFFFFFFF);
-        context.drawCenteredTextWithShadow(textRenderer,
+        context.drawCenteredString(font, "Стандартные фильтры чата", width / 2, 14, 0xFFFFFFFF);
+        context.drawCenteredString(font,
             "Скрытие убирает кнопку с панели, но не удаляет сообщения или историю.", width / 2, 52, 0xFFCCD2D8);
 
         int cellW = Math.min(340, Math.max(220, (width - 48) / 2));
@@ -38,7 +38,7 @@ public final class StandardFiltersScreen extends Screen {
             int x = left + col * (cellW + gap), y = top + row * 46;
             boolean visible = ChatExperienceSettings.standardFilterVisible(KEYS[i]);
             context.fill(x, y, x + cellW, y + 38, 0xB52A2E33);
-            context.drawTextWithShadow(textRenderer, LABELS[i], x + 10, y + 7, 0xFFFFFFFF);
+            context.drawString(font, LABELS[i], x + 10, y + 7, 0xFFFFFFFF);
             String action = visible ? "Убрать" : "Вернуть";
             button(context, action, x + cellW - 96, y + 5, 86, 27, mouseX, mouseY,
                 visible ? 0xFF733D3D : 0xFF315D46);
@@ -50,12 +50,12 @@ public final class StandardFiltersScreen extends Screen {
         super.render(context, mouseX, mouseY, delta);
     }
 
-    @Override public boolean mouseClicked(Click click, boolean doubled) {
+    @Override public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
         if (click.button() == 0) {
             double mouseX = click.x(), mouseY = click.y();
             if (mouseX >= width / 2.0 - 55 && mouseX < width / 2.0 + 55
                     && mouseY >= height - 31 && mouseY < height - 9) {
-                close();
+                onClose();
                 return true;
             }
             if (mouseX >= width / 2.0 - 160 && mouseX < width / 2.0 + 160
@@ -83,5 +83,5 @@ public final class StandardFiltersScreen extends Screen {
         return super.mouseClicked(click, doubled);
     }
 
-    @Override public void close() { client.setScreen(parent); }
+    @Override public void onClose() { minecraft.setScreen(parent); }
 }

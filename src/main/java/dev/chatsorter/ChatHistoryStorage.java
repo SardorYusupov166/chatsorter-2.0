@@ -6,9 +6,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.text.Text;
-import net.minecraft.text.TextCodecs;
-
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentSerialization;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,8 +45,8 @@ public final class ChatHistoryStorage {
             for (int i = start; i < array.size(); i++) {
                 JsonObject o = array.get(i).getAsJsonObject();
                 String json = o.has("component") ? o.get("component").getAsString() : "";
-                Text message = deserializeText(json);
-                if (message == null) message = Text.literal(o.has("plain") ? o.get("plain").getAsString() : "");
+                Component message = deserializeText(json);
+                if (message == null) message = Component.literal(o.has("plain") ? o.get("plain").getAsString() : "");
                 ChatSorter.Tab tab;
                 try { tab = ChatSorter.Tab.valueOf(o.get("tab").getAsString()); }
                 catch (Exception e) { tab = ChatSorter.Tab.CONSOLE; }
@@ -189,7 +188,7 @@ public final class ChatHistoryStorage {
         }
     }
 
-    private static List<ChatMessageRecord> readSourceRecords(JsonObject row, Text fallbackMessage,
+    private static List<ChatMessageRecord> readSourceRecords(JsonObject row, Component fallbackMessage,
                                                               String serverKey, ChatSorter.Tab tab,
                                                               String sender, boolean migrateOldConsole) {
         ArrayList<ChatMessageRecord> result = new ArrayList<>();
@@ -199,8 +198,8 @@ public final class ChatHistoryStorage {
                 JsonObject source = element.getAsJsonObject();
                 String raw = stringValue(source, "rawText", fallbackMessage.getString());
                 String component = stringValue(source, "component", "");
-                Text message = deserializeText(component);
-                if (message == null) message = Text.literal(raw);
+                Component message = deserializeText(component);
+                if (message == null) message = Component.literal(raw);
                 ChatSorter.Tab sourceTab = migrateOldConsole && !ChatSorter.isPlayerCommandAudit(raw)
                     ? ChatSorter.classify(raw) : tab;
                 Set<String> categories = readCategories(source, sourceTab);
@@ -275,16 +274,16 @@ public final class ChatHistoryStorage {
         catch (Exception ignored) { return fallback; }
     }
 
-    public static String serializeText(Text text) {
-        try { return TextCodecs.CODEC.encodeStart(JsonOps.INSTANCE, text).getOrThrow().toString(); }
+    public static String serializeText(Component text) {
+        try { return ComponentSerialization.CODEC.encodeStart(JsonOps.INSTANCE, text).getOrThrow().toString(); }
         catch (Exception ignored) { return ""; }
     }
 
-    public static Text deserializeText(String json) {
+    public static Component deserializeText(String json) {
         if (json == null || json.isBlank()) return null;
         try {
             JsonElement element = JsonParser.parseString(json);
-            return TextCodecs.CODEC.parse(JsonOps.INSTANCE, element).getOrThrow();
+            return ComponentSerialization.CODEC.parse(JsonOps.INSTANCE, element).getOrThrow();
         } catch (Exception ignored) { return null; }
     }
 
@@ -297,11 +296,11 @@ public final class ChatHistoryStorage {
 
     private record HistoryRowSnapshot(UUID id, String serverId, String sessionId, Instant receivedAt,
                                       String senderId, String time, String tab, String sender, int repeats,
-                                      Text message, String plain, String componentJson, Set<String> categories,
+                                      Component message, String plain, String componentJson, Set<String> categories,
                                       boolean alertTriggered, List<SourceSnapshot> sources) { }
 
     private record SourceSnapshot(UUID id, String serverId, String sessionId, Instant receivedAt,
-                                  String senderId, String senderName, String rawText, Text message,
+                                  String senderId, String senderName, String rawText, Component message,
                                   String componentJson, Set<String> categories, String conversationId,
                                   int repeatCount, boolean restored) { }
 

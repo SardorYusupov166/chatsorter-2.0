@@ -1,14 +1,13 @@
 package dev.chatsorter;
 
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 
 /** Display row in the chat. Consecutive repeats share a row but retain every known source message. */
 public final class ChatHistoryEntry {
@@ -17,7 +16,7 @@ public final class ChatHistoryEntry {
     public final String sessionId;
     public final Instant receivedAt;
     public final String senderId;
-    public final Text message;
+    public final Component message;
     public final String time;
     public final ChatSorter.Tab tab;
     public final String sender;
@@ -33,7 +32,7 @@ public final class ChatHistoryEntry {
 
     public ChatHistoryEntry(ChatMessageRecord source, String time, ChatSorter.Tab tab,
                             String technical, boolean restored) {
-        this(source == null ? Text.empty() : source.message(), time, tab,
+        this(source == null ? Component.empty() : source.message(), time, tab,
             source == null ? "" : source.senderName(), technical, 1, restored,
             source == null ? "" : source.serverId(), source == null ? "" : source.sessionId(),
             source == null ? null : source.id(), source == null ? null : source.receivedAt(),
@@ -44,18 +43,18 @@ public final class ChatHistoryEntry {
         if (source != null) sourceRecords.add(source);
     }
 
-    public ChatHistoryEntry(Text message, String time, ChatSorter.Tab tab, String sender,
+    public ChatHistoryEntry(Component message, String time, ChatSorter.Tab tab, String sender,
                             String technical, int repeats, boolean restored) {
         this(message, time, tab, sender, technical, repeats, restored,
             "", "", UUID.randomUUID(), parseTimeOrNow(time), "",
             Set.of((tab == null ? ChatSorter.Tab.CONSOLE : tab).name()), "");
     }
 
-    public ChatHistoryEntry(Text message, String time, ChatSorter.Tab tab, String sender,
+    public ChatHistoryEntry(Component message, String time, ChatSorter.Tab tab, String sender,
                             String technical, int repeats, boolean restored,
                             String serverId, String sessionId, UUID id, Instant receivedAt,
                             String senderId, Set<String> categories, String componentJson) {
-        this.message = message == null ? Text.empty() : message;
+        this.message = message == null ? Component.empty() : message;
         this.time = time == null ? "" : time;
         this.tab = tab == null ? ChatSorter.Tab.CONSOLE : tab;
         this.sender = sender == null ? "" : sender;
@@ -81,7 +80,7 @@ public final class ChatHistoryEntry {
                             int repeats, boolean restored, List<ChatMessageRecord> sources,
                             Set<String> categories, String componentJson) {
         ChatMessageRecord first = sources == null || sources.isEmpty() ? null : sources.get(0);
-        this.message = first == null ? Text.empty() : first.message();
+        this.message = first == null ? Component.empty() : first.message();
         this.time = time == null ? "" : time;
         this.tab = tab == null ? ChatSorter.Tab.CONSOLE : tab;
         this.sender = first == null ? (sender == null ? "" : sender) : first.senderName();
@@ -116,11 +115,11 @@ public final class ChatHistoryEntry {
         repeats = Math.max(repeats + 1, sourceRecords.size());
     }
 
-    public Text displayText() {
-        MutableText shown = bookmarkFallback
-            ? Text.literal("[избранное · копия] ").styled(s -> s.withColor(0xFFE0BD65)).append(message.copy())
-            : restored ? Text.literal("[пред. сессия] ").styled(s -> s.withColor(0xFF8A929B)).append(message.copy()) : message.copy();
-        if (repeats > 1) shown.append(Text.literal(" ×" + repeats).styled(s -> s.withColor(0xFF9EA7B0)));
+    public Component displayText() {
+        MutableComponent shown = bookmarkFallback
+            ? Component.literal("[избранное · копия] ").withStyle(s -> s.withColor(0xFFE0BD65)).append(message.copy())
+            : restored ? Component.literal("[пред. сессия] ").withStyle(s -> s.withColor(0xFF8A929B)).append(message.copy()) : message.copy();
+        if (repeats > 1) shown.append(Component.literal(" ×" + repeats).withStyle(s -> s.withColor(0xFF9EA7B0)));
         return shown;
     }
 

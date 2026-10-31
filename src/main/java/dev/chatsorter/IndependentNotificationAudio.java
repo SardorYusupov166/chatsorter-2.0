@@ -1,17 +1,16 @@
 package dev.chatsorter;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.sound.OggAudioStream;
-import net.minecraft.client.sound.Sound;
-import net.minecraft.client.sound.WeightedSoundSet;
-import net.minecraft.registry.Registries;
-import net.minecraft.resource.ResourceManager;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.random.Random;
-
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.SourceDataLine;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.Sound;
+import net.minecraft.client.sounds.JOrbisAudioStream;
+import net.minecraft.client.sounds.WeighedSoundEvents;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.util.RandomSource;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -29,26 +28,26 @@ final class IndependentNotificationAudio {
     );
 
     static void play(String soundEventId, float volume, String context) {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         Identifier eventId = Identifier.tryParse(soundEventId);
         if (eventId == null) {
             ChatSorterDiagnostics.soundPlayback(context, soundEventId, "FAILED_INVALID_SOUND_ID", "Не удалось разобрать ID звука");
             return;
         }
 
-        WeightedSoundSet soundSet = client.getSoundManager().get(eventId);
+        WeighedSoundEvents soundSet = client.getSoundManager().getSoundEvent(eventId);
         if (soundSet == null) {
             playMinecraftFallback(client, eventId, volume, context, "Звук не найден в загруженном SoundManager");
             return;
         }
-        Sound selected = soundSet.getSound(Random.create());
+        Sound selected = soundSet.getSound(RandomSource.create());
         if (selected == null) {
             playMinecraftFallback(client, eventId, volume, context, "SoundManager не выбрал звуковой файл");
             return;
         }
 
-        Identifier location = selected.getLocation();
-        Identifier resourceId = Identifier.of(location.getNamespace(), "sounds/" + location.getPath() + ".ogg");
+        Identifier location = selected.getPath();
+        Identifier resourceId = Identifier.fromNamespaceAndPath(location.getNamespace(), "sounds/" + location.getPath() + ".ogg");
         ResourceManager resources = client.getResourceManager();
         float gain = Math.max(0.0F, Math.min(1.0F, volume));
         try {
@@ -66,7 +65,7 @@ final class IndependentNotificationAudio {
     private static boolean decodeAndPlay(ResourceManager resources, Identifier resourceId, float volume,
                                          String context, String soundEventId) {
         try (InputStream input = resources.open(resourceId);
-             OggAudioStream stream = new OggAudioStream(input)) {
+             JOrbisAudioStream stream = new JOrbisAudioStream(input)) {
             AudioFormat format = stream.getFormat();
             ByteBuffer decoded = stream.readAll();
             byte[] pcm = new byte[decoded.remaining()];
@@ -102,7 +101,7 @@ final class IndependentNotificationAudio {
     }
 
     /** Keep alerts audible if Java Sound cannot access an output device on this system. */
-    private static void playMinecraftFallback(MinecraftClient client, Identifier eventId, float volume,
+    private static void playMinecraftFallback(Minecraft client, Identifier eventId, float volume,
                                              String context, String reason) {
         ChatSorterDiagnostics.soundPlayback(context, eventId.toString(), "MINECRAFT_FALLBACK_REQUESTED", reason);
         client.execute(() -> {
@@ -111,7 +110,7 @@ final class IndependentNotificationAudio {
                     client.player == null ? "Игрок ещё не загружен" : "Громкость равна 0%");
                 return;
             }
-            var event = Registries.SOUND_EVENT.get(eventId);
+            var event = BuiltInRegistries.SOUND_EVENT.getValue(eventId);
             if (event == null) {
                 ChatSorterDiagnostics.soundPlayback(context, eventId.toString(), "FAILED_MINECRAFT_FALLBACK", "SoundEvent не найден в реестре");
                 return;

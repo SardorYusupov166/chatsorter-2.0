@@ -1,7 +1,7 @@
 package dev.chatsorter;
 
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.io.IOException;
@@ -140,7 +140,7 @@ public final class ChatSorterDiagnostics {
     }
     private ChatSorterDiagnostics() {}
 
-    public static synchronized void record(Text message, String classified, String selected, boolean visible) {
+    public static synchronized void record(Component message, String classified, String selected, boolean visible) {
         if (failed) return;
         try {
             Files.createDirectories(FILE.getParent());
