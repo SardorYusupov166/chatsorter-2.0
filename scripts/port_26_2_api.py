@@ -104,6 +104,12 @@ for path in ROOT.rglob("*.java"):
     source = source.replace("Minecraft.getInstance().setScreen(", "Minecraft.getInstance().gui.setScreen(")
     source = re.sub(r"\b(super)\.render\(context,", "super.extractRenderState(context,", source)
     source = re.sub(r"\bvoid render\(GuiGraphicsExtractor", "void extractRenderState(GuiGraphicsExtractor", source)
+    source = source.replace("super.render(c,mx,my,delta)", "super.extractRenderState(c,mx,my,delta)")
+    source = source.replace("soundSearch.render(c,mx,my,0);", "// EditBox is rendered via Screen child extraction in 26.2.")
+    source = source.replace("inGameHud.getChat()", "inGameHud.hud.getChat()")
+    source = re.sub(r"\\b(mc|client)\\.player\\.displayClientMessage\\(", lambda m: m[1] + ".gui.hud.getChat().addClientSystemMessage(", source)
+    source = re.sub(r"(\\.gui\\.hud\\.getChat\\(\\)|\\bpanel\\.hud|\\bhud)\\.addMessage\\(", r"\\1.addClientSystemMessage(", source)
+    source = source.replace("ChatPanelManager.render(context, textRenderer,", "ChatPanelManager.extractRenderState(context, textRenderer,")
     if path.name == "ChatSorter.java":
         source = source.replace(
             "import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;",
