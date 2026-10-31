@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.List;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
 import net.minecraft.client.multiplayer.chat.GuiMessageTag;
+import net.minecraft.client.multiplayer.chat.GuiMessageSource;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -30,12 +31,12 @@ public abstract class ChatHudMixin {
     @org.spongepowered.asm.mixin.Unique private boolean chatsorter$panelsRendered;
     // Minecraft's vanilla chat keeps only 100 messages and wrapped visual lines.
     // Raise both caps locally so other players do not need an additional mod.
-    @ModifyConstant(method = "addMessageToQueue(Lnet/minecraft/client/GuiMessage;)V", constant = @Constant(intValue = 100))
+    @ModifyConstant(method = "addMessageToQueue(Lnet/minecraft/client/multiplayer/chat/GuiMessage;)V", constant = @Constant(intValue = 100))
     private int chatsorter$expandMessageHistory(int original) {
         return ChatSorter.maxChatHistory();
     }
 
-    @ModifyConstant(method = "addMessageToDisplayQueue(Lnet/minecraft/client/GuiMessage;)V", constant = @Constant(intValue = 100))
+    @ModifyConstant(method = "addMessageToDisplayQueue(Lnet/minecraft/client/multiplayer/chat/GuiMessage;)V", constant = @Constant(intValue = 100))
     private int chatsorter$expandVisibleHistory(int original) {
         return ChatSorter.maxChatHistory();
     }
@@ -45,8 +46,10 @@ public abstract class ChatHudMixin {
         return ChatSorter.maxChatHistory();
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIIZZ)V", at = @At("HEAD"), cancellable = true)
-    private void chatsorter$translate(GuiGraphicsExtractor context, Font textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
+    @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;Z)V", at = @At("HEAD"), cancellable = true)
+    private void chatsorter$translate(GuiGraphicsExtractor context, Font textRenderer, int currentTick, int mouseX, int mouseY, ChatComponent.DisplayMode displayMode, boolean changeCursor, CallbackInfo ci) {
+        boolean focused = displayMode != ChatComponent.DisplayMode.BACKGROUND;
+        boolean chatHidden = false;
         ChatComponent hud = (ChatComponent)(Object)this;
         chatsorter$panelsRendered = false;
         if (dev.chatsorter.ChatWorldRenderer.shouldHideScreenChat(hud)) {
@@ -85,8 +88,10 @@ public abstract class ChatHudMixin {
             }
         }
     }
-    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIIZZ)V", at = @At("RETURN"))
-    private void chatsorter$restore(GuiGraphicsExtractor context, Font textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
+    @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;Z)V", at = @At("RETURN"))
+    private void chatsorter$restore(GuiGraphicsExtractor context, Font textRenderer, int currentTick, int mouseX, int mouseY, ChatComponent.DisplayMode displayMode, boolean changeCursor, CallbackInfo ci) {
+        boolean focused = displayMode != ChatComponent.DisplayMode.BACKGROUND;
+        boolean chatHidden = false;
         if (chatsorter$matrixPushed) {
             if (!chatHidden) chatsorter$renderAlertHighlights(context);
             context.pose().popMatrix();
@@ -104,8 +109,8 @@ public abstract class ChatHudMixin {
             ChatPanelManager.extractRenderState(context, textRenderer, currentTick, mouseX, mouseY, focused, false);
         }
     }
-    @Inject(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/GuiMessageTag;)V", at = @At("HEAD"), cancellable = true)
-    private void chatsorter$sort(Component message, MessageSignature signature, GuiMessageTag indicator, CallbackInfo ci) {
+    @Inject(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/multiplayer/chat/GuiMessageSource;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V", at = @At("HEAD"), cancellable = true)
+    private void chatsorter$sort(Component message, MessageSignature signature, GuiMessageSource source, GuiMessageTag indicator, CallbackInfo ci) {
         if (!ChatSorter.capture(message, signature, indicator)) ci.cancel();
     }
 
