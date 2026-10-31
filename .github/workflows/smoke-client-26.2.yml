@@ -4,6 +4,8 @@ on:
     branches: ['port/mc26.2']
     paths:
       - '.github/workflows/smoke-client-26.2.yml'
+      - 'src/main/java/dev/chatsorter/mixin/**'
+      - 'src/main/java/dev/chatsorter/ChatWorldRenderer.java'
   workflow_dispatch:
 
 permissions:
