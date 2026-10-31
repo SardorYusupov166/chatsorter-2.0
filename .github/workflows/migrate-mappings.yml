@@ -1,0 +1,76 @@
+name: Port ChatSorter 2.0 to Mojang mappings (phase 1)
+on:
+  push:
+    branches: ['port/mc26.2']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.2.1'
+      - name: Migrate original 1.21.11 Yarn sources to official mappings
+        shell: bash
+        run: |
+          set -eo pipefail
+          if ! grep -q 'minecraft_version=1.21.11' gradle.properties; then
+            echo 'Source is no longer at 1.21.11. Skipping the mappings migration.' | tee mapping-log.txt
+            exit 0
+          fi
+          if ! grep -q 'yarn_mappings' build.gradle; then
+            echo 'Source already uses official Mojang mappings.' | tee mapping-log.txt
+            exit 0
+          fi
+          gradle migrateMappings --mappings "net.minecraft:mappings:1.21.11" --console=plain --no-daemon 2>&1 | tee mapping-log.txt
+          if [ -d remappedSrc/dev ]; then
+            cp -a remappedSrc/. src/main/java/
+          elif [ -d remappedSrc/src/main/java ]; then
+            cp -a remappedSrc/src/main/java/. src/main/java/
+          else
+            echo 'Unrecognized migrateMappings output tree:' | tee -a mapping-log.txt
+            find remappedSrc -maxdepth 5 -type f | head -30 | tee -a mapping-log.txt
+            exit 1
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('build.gradle')
+          t=p.read_text()
+          old='mappings "net.fabricmc:yarn:' + '$' + '{project.yarn_mappings}:v2"'
+          assert old in t, 'Missing Yarn dependency declaration'
+          p.write_text(t.replace(old,'mappings loom.officialMojangMappings()'))
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main/java build.gradle
+          if ! git diff --cached --quiet; then
+            git commit -m "Port 1/2: migrate ChatSorter 2.0 sources to Mojang mappings"
+            git push origin HEAD:port/mc26.2
+          fi
+      - name: Compile remapped code on Minecraft 1.21.11
+        if: success()
+        shell: bash
+        run: |
+          set -o pipefail
+          gradle build --console=plain --no-daemon 2>&1 | tee compilation-log.txt
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatsorter-port-phase1-diagnostics
+          path: |
+            mapping-log.txt
+            compilation-log.txt
+          if-no-files-found: warn
