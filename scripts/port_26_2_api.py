@@ -108,10 +108,15 @@ for path in ROOT.rglob("*.java"):
     source = source.replace("soundSearch.render(c,mx,my,0);", "// EditBox is rendered via Screen child extraction in 26.2.")
     source = source.replace("inGameHud.getChat()", "inGameHud.hud.getChat()")
     if path.name == "ChatScreenMixin.java":
-        source = re.sub(r"(addClientSystemMessage\([^;\n]+),\s*true\);", r"\1);", source)
+        source = "\n".join(re.sub(r",\s*true\);", ");", line) if "addClientSystemMessage(" in line else line for line in source.split("\n"))
     source = re.sub(r"\b(mc|client)\.player\.displayClientMessage\(", lambda m: m[1] + ".gui.hud.getChat().addClientSystemMessage(", source)
     source = re.sub(r"(\.gui\.hud\.getChat\(\)|\bpanel\.hud|\bhud)\.addMessage\(", r"\1.addClientSystemMessage(", source)
     source = source.replace("ChatPanelManager.render(context, textRenderer,", "ChatPanelManager.extractRenderState(context, textRenderer,")
+    if path.name == "ChatPanelManager.java":
+        source = source.replace("panel.hud.render(context, renderer, currentTick, mouseX - panel.x, mouseY - panel.y, focused, chatHidden);", "panel.hud.extractRenderState(context, renderer, currentTick, mouseX - panel.x, mouseY - panel.y, focused ? ChatComponent.DisplayMode.FOREGROUND : ChatComponent.DisplayMode.BACKGROUND, false);")
+    if path.name == "ChatWorldRenderer.java":
+        source = source.replace("renderContext.matrices()", "renderContext.poseStack()")
+        source = source.replace("client.gameRenderer.getMainCamera()", "client.gameRenderer.mainCamera()")
     if path.name == "ChatSorter.java":
         source = source.replace(
             "import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;",
