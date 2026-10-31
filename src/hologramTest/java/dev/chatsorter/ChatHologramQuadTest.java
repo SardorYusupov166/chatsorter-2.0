@@ -67,6 +67,7 @@ public final class ChatHologramQuadTest {
                 case "addVertex" -> vertices.add(new Vertex((float)args[0], (float)args[1], (float)args[2]));
                 case "setColor" -> vertices.getLast().color = (int)args[0];
                 case "setLight" -> vertices.getLast().light = (int)args[0];
+                case "setUv2" -> vertices.getLast().light = (int)args[0] | ((int)args[1] << 16);
                 default -> throw new AssertionError("Unexpected vertex operation: " + method);
             }
             return proxy;
