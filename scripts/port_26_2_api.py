@@ -107,8 +107,10 @@ for path in ROOT.rglob("*.java"):
     source = source.replace("super.render(c,mx,my,delta)", "super.extractRenderState(c,mx,my,delta)")
     source = source.replace("soundSearch.render(c,mx,my,0);", "// EditBox is rendered via Screen child extraction in 26.2.")
     source = source.replace("inGameHud.getChat()", "inGameHud.hud.getChat()")
-    source = re.sub(r"\\b(mc|client)\\.player\\.displayClientMessage\\(", lambda m: m[1] + ".gui.hud.getChat().addClientSystemMessage(", source)
-    source = re.sub(r"(\\.gui\\.hud\\.getChat\\(\\)|\\bpanel\\.hud|\\bhud)\\.addMessage\\(", r"\\1.addClientSystemMessage(", source)
+    if path.name == "ChatScreenMixin.java":
+        source = re.sub(r"(addClientSystemMessage\([^;\n]+),\s*true\);", r"\1);", source)
+    source = re.sub(r"\b(mc|client)\.player\.displayClientMessage\(", lambda m: m[1] + ".gui.hud.getChat().addClientSystemMessage(", source)
+    source = re.sub(r"(\.gui\.hud\.getChat\(\)|\bpanel\.hud|\bhud)\.addMessage\(", r"\1.addClientSystemMessage(", source)
     source = source.replace("ChatPanelManager.render(context, textRenderer,", "ChatPanelManager.extractRenderState(context, textRenderer,")
     if path.name == "ChatSorter.java":
         source = source.replace(
