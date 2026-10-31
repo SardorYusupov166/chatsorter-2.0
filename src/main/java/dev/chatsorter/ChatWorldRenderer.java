@@ -1,6 +1,5 @@
 package dev.chatsorter;
 
-import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.chatsorter.mixin.ChatHudAccess;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
@@ -10,8 +9,7 @@ import net.minecraft.client.multiplayer.chat.GuiMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.ChatComponent;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Player;
@@ -45,9 +43,7 @@ public final class ChatWorldRenderer {
     private static final double THIRD_PERSON_LIFT = 0.22;
     // Rendering happens exclusively on Minecraft's client render thread.
     private static boolean renderWithDepth;
-    // END_MAIN is after vanilla's world buffers have been flushed.
-    private static final ByteBufferBuilder HOLOGRAM_ALLOCATOR = new ByteBufferBuilder(128 * 1024);
-    private static final MultiBufferSource.BufferSource HOLOGRAM_CONSUMERS = MultiBufferSource.immediate(HOLOGRAM_ALLOCATOR);
+    // 26.2 features must be submitted before the feature rendering pass.
     private static final long LOG_INTERVAL_NANOS = 5_000_000_000L;
     private static final Map<String, String> LAST_PHASES = new HashMap<>();
     private static final Map<String, Long> LAST_LOG_TIMES = new HashMap<>();
@@ -58,8 +54,8 @@ public final class ChatWorldRenderer {
 
     public static void register() {
         // Late pass: stained glass and water have already drawn to the framebuffer.
-        LevelRenderEvents.END_MAIN.register(ChatWorldRenderer::render);
-        LOGGER.info("[ChatSorter][RPG] Registered world render callback: LevelRenderEvents.END_MAIN");
+        LevelRenderEvents.COLLECT_SUBMITS.register(ChatWorldRenderer::render);
+        LOGGER.info("[ChatSorter][RPG] Registered world render callback: LevelRenderEvents.COLLECT_SUBMITS");
     }
 
     public static boolean shouldHideScreenChat(ChatComponent hud) {
@@ -145,7 +141,7 @@ public final class ChatWorldRenderer {
         Vector3f up = new Vector3f(0.0F, 1.0F, 0.0F);
 
         // Vanilla world buffers are no longer available at END_MAIN.
-        MultiBufferSource.BufferSource consumers = HOLOGRAM_CONSUMERS;
+        SubmitNodeCollector consumers = renderContext.submitNodeCollector();
         PoseStack worldMatrices = renderContext.poseStack();
         if (worldMatrices == null) {
             report("world", "missing-context", "world render matrix stack unavailable", LOG_INTERVAL_NANOS);
@@ -180,8 +176,6 @@ public final class ChatWorldRenderer {
                 anchorX, anchorY, anchorZ, facing, tick, scale);
             SUBMITTED_CHATS.add(hud);
         }
-        // Flush before the world render pass finishes: otherwise the panel disappears.
-        consumers.endBatch();
         List<GuiMessage.Line> mainMessages = ((ChatHudAccess)client.gui.hud.getChat()).chatsorter$getVisibleMessages();
         report("world", SUBMITTED_CHATS.isEmpty() ? "outside-view" : "submitted",
             "world hologram vertices submitted (not a GPU visibility confirmation): callbacks=" + renderCallbacks
@@ -195,7 +189,7 @@ public final class ChatWorldRenderer {
             + ", cameraOffset=" + cameraPos.distanceTo(playerPos)
             + ", position=" + ChatExperienceSettings.rpgPanelPosition + ", scale=" + layout.scale()
             + ", fov=" + fov + ", aspect=" + aspect + ", mainVisibleRows=" + mainMessages.size()
-            + ", consumers=" + className(consumers) + ", event=END_MAIN"
+            + ", consumers=" + className(consumers) + ", event=COLLECT_SUBMITS"
             + ", matrices=" + className(worldMatrices) + ", screen=" + client.gui.screen(),
             LOG_INTERVAL_NANOS);
     }
@@ -237,7 +231,7 @@ public final class ChatWorldRenderer {
         return WORLD_SCALE * (float)Math.max(0.65, Math.min(1.35, client.options.chatScale().get()));
     }
 
-    private static void drawChat(MultiBufferSource consumers, Font renderer, PoseStack matrices,
+    private static void drawChat(SubmitNodeCollector consumers, Font renderer, PoseStack matrices,
                                  ChatComponent hud, int index, int width,
                                  double x, double y, double z, Quaternionf facing, int tick, float scale) {
         List<GuiMessage.Line> visible = ((ChatHudAccess)hud).chatsorter$getVisibleMessages();
@@ -326,15 +320,14 @@ public final class ChatWorldRenderer {
         }
     }
 
-    private static void submitBackground(MultiBufferSource consumers, PoseStack matrices,
+    private static void submitBackground(SubmitNodeCollector consumers, PoseStack matrices,
                                          float x, float y, int width, int height, int color) {
         if (width <= 0 || height <= 0 || (color >>> 24) == 0) return;
-        ChatHologramQuad.emit(consumers.getBuffer(renderWithDepth
-                ? RenderTypes.textBackground() : RenderTypes.textBackgroundSeeThrough()),
-            matrices.last().pose(), x, y, width, height, color);
+        consumers.submitTextBackground(matrices, x, y, x + width, y + height,
+            color, renderWithDepth ? Font.DisplayMode.NORMAL : Font.DisplayMode.SEE_THROUGH, FULL_BRIGHT);
     }
 
-    private static void drawBorder(MultiBufferSource consumers, PoseStack matrices,
+    private static void drawBorder(SubmitNodeCollector consumers, PoseStack matrices,
                                    float x, float y, int width, int height, int thickness, int color) {
         submitBackground(consumers, matrices, x, y, width, thickness, color);
         submitBackground(consumers, matrices, x, y + height - thickness, width, thickness, color);
@@ -342,7 +335,7 @@ public final class ChatWorldRenderer {
         submitBackground(consumers, matrices, x + width - thickness, y + thickness, thickness, height - 2 * thickness, color);
     }
 
-    private static void drawCorner(MultiBufferSource consumers, PoseStack matrices,
+    private static void drawCorner(SubmitNodeCollector consumers, PoseStack matrices,
                                    float x, float y, int directionX, int directionY, int accent) {
         int bright = withAlpha(accent, 245);
         float horizontalX = directionX > 0 ? x : x - 9;
@@ -354,11 +347,11 @@ public final class ChatWorldRenderer {
         submitBackground(consumers, matrices, Math.min(x, innerX), innerY, 5, 1, withAlpha(0xFF9BE8FF, 225));
     }
 
-    private static void drawText(MultiBufferSource consumers, Font renderer, PoseStack matrices,
+    private static void drawText(SubmitNodeCollector consumers, Font renderer, PoseStack matrices,
                                  float x, float y, net.minecraft.util.FormattedCharSequence text, int color) {
-        renderer.drawInBatch(text, x, y, color, false, matrices.last().pose(), consumers,
+        consumers.submitText(matrices, x, y, text, false,
             renderWithDepth ? Font.DisplayMode.NORMAL : Font.DisplayMode.SEE_THROUGH,
-            0, FULL_BRIGHT);
+            FULL_BRIGHT, color, 0, 0);
     }
 
     private static int withAlpha(int color, int alpha) {
