@@ -4,7 +4,7 @@ on:
     branches: ['port/mc26.2']
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,6 +18,18 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.8.1'
+      - name: Apply first-pass 26.2 source API migration
+        shell: bash
+        run: |
+          set -eo pipefail
+          python3 scripts/port_26_2_api.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main/java
+          if ! git diff --cached --quiet; then
+            git commit -m "port(26.2): apply source API migration"
+            git push origin HEAD:port/mc26.2
+          fi
       - name: Compile all sources with expanded diagnostics
         shell: bash
         run: |
