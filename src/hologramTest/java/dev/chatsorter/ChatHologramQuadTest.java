@@ -1,6 +1,6 @@
 package dev.chatsorter;
 
-import net.minecraft.client.render.VertexConsumer;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -64,9 +64,9 @@ public final class ChatHologramQuadTest {
             // Exercise Minecraft's real matrix and packed-light default methods.
             if (method.isDefault()) return InvocationHandler.invokeDefault(proxy, method, args);
             switch (method.getName()) {
-                case "vertex" -> vertices.add(new Vertex((float)args[0], (float)args[1], (float)args[2]));
-                case "color" -> vertices.getLast().color = (int)args[0];
-                case "light" -> vertices.getLast().light = (int)args[0] | ((int)args[1] << 16);
+                case "addVertex" -> vertices.add(new Vertex((float)args[0], (float)args[1], (float)args[2]));
+                case "setColor" -> vertices.getLast().color = (int)args[0];
+                case "setLight" -> vertices.getLast().light = (int)args[0];
                 default -> throw new AssertionError("Unexpected vertex operation: " + method);
             }
             return proxy;
