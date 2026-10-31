@@ -1,7 +1,7 @@
 package dev.chatsorter;
 
 import java.util.List;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -55,16 +55,16 @@ public final class AlertSettingsScreen extends Screen {
         soundSearch.setVisible(false);
         addRenderableWidget(soundSearch);
     }
-    private void button(GuiGraphics c, String label, int x, int y, int w, int h, int mx, int my) {
+    private void button(GuiGraphicsExtractor c, String label, int x, int y, int w, int h, int mx, int my) {
         boolean hover = mx >= x && mx < x+w && my >= y && my < y+h;
         c.fill(x,y,x+w,y+h,hover ? green() : DARK);
         c.drawCenteredString(font,label,x+w/2,y+(h-8)/2,0xFFFFFFFF);
     }
-    private void panel(GuiGraphics c, int x, int y, int w, int h) {
+    private void panel(GuiGraphicsExtractor c, int x, int y, int w, int h) {
         c.fill(x,y,x+w,y+h,PANEL);
         c.fill(x,y,x+w,y+1,0xFF53605A);
     }
-    private void scrollbar(GuiGraphics c,int x,int top,int bottom,int count,int rows,int scroll) {
+    private void scrollbar(GuiGraphicsExtractor c,int x,int top,int bottom,int count,int rows,int scroll) {
         if(count<=rows || bottom<=top) return;
         int h=Math.max(12,(bottom-top)*rows/count);
         int y=top+(bottom-top-h)*scroll/Math.max(1,count-rows);
@@ -98,7 +98,7 @@ public final class AlertSettingsScreen extends Screen {
         int value=(int)Math.round((100+fraction*(5_000-100))/100.0)*100;
         ChatExperienceSettings.chatDisplayLimit=ChatExperienceSettings.clampDisplayLimit(value);
     }
-    @Override public void render(GuiGraphics c, int mx, int my, float delta) {
+    @Override public void render(GuiGraphicsExtractor c, int mx, int my, float delta) {
         c.fill(0,0,width,height,0xEE14181D);
         c.fill(0,0,width,39,green());
         c.drawCenteredString(font,"Настройки ChatSorter",width/2,15,0xFFFFFFFF);
@@ -264,7 +264,7 @@ public final class AlertSettingsScreen extends Screen {
     private int pickerW() { return width-pickerX()*2; }
     private int pickerH() { return height-pickerY()*2; }
     private int pickerRows() { return Math.max(1,(pickerH()-112)/34); }
-    private void renderSoundPicker(GuiGraphics c,int mx,int my) {
+    private void renderSoundPicker(GuiGraphicsExtractor c,int mx,int my) {
         int x=pickerX(),y=pickerY(),w=pickerW(),h=pickerH();
         c.fill(0,0,width,height,0xCC080A0D);
         c.fill(x,y,x+w,y+h,0xFF252A30);
@@ -347,7 +347,7 @@ public final class AlertSettingsScreen extends Screen {
                     return true;
                 }
             }
-            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+Math.min(sw,160) && y>=oy+315 && y<oy+337) { minecraft.setScreen(new HotkeySetupScreen(this)); return true; }
+            if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+Math.min(sw,160) && y>=oy+315 && y<oy+337) { minecraft.gui.setScreen(new HotkeySetupScreen(this)); return true; }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+369 && y<oy+391) {
                 ChatExperienceSettings.mergeRepeats=!ChatExperienceSettings.mergeRepeats; ChatExperienceSettings.save(); return true;
             }
@@ -368,10 +368,10 @@ public final class AlertSettingsScreen extends Screen {
                 return true;
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+543 && y<oy+565) {
-                minecraft.setScreen(new UserFiltersScreen(this)); return true;
+                minecraft.gui.setScreen(new UserFiltersScreen(this)); return true;
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+570 && y<oy+592) {
-                minecraft.setScreen(new StandardFiltersScreen(this)); return true;
+                minecraft.gui.setScreen(new StandardFiltersScreen(this)); return true;
             }
             if(y>=settingsTop() && y<settingsBottom() && x>=sx && x<sx+sw && y>=oy+597 && y<oy+619) {
                 ChatExperienceSettings.rpgModeEnabled=!ChatExperienceSettings.rpgModeEnabled; ChatExperienceSettings.save();
@@ -452,6 +452,6 @@ public final class AlertSettingsScreen extends Screen {
         if(draggingRestoreLimit) ChatExperienceSettings.save();
         draggingRestoreLimit=false;
         draggingVolume=false;
-        minecraft.setScreen(parent);
+        minecraft.gui.setScreen(parent);
     }
 }

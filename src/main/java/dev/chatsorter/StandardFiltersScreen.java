@@ -1,6 +1,6 @@
 package dev.chatsorter;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -16,13 +16,13 @@ public final class StandardFiltersScreen extends Screen {
         this.parent = parent;
     }
 
-    private void button(GuiGraphics context, String label, int x, int y, int w, int h, int mouseX, int mouseY, int color) {
+    private void button(GuiGraphicsExtractor context, String label, int x, int y, int w, int h, int mouseX, int mouseY, int color) {
         boolean hovered = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
         context.fill(x, y, x + w, y + h, hovered ? ChatTheme.accent() : color);
         context.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2, 0xFFFFFFFF);
     }
 
-    @Override public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
+    @Override public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         context.fill(0, 0, width, height, 0xEE14181D);
         context.fill(0, 0, width, 38, ChatTheme.accent());
         context.drawCenteredString(font, "Стандартные фильтры чата", width / 2, 14, 0xFFFFFFFF);
@@ -83,5 +83,5 @@ public final class StandardFiltersScreen extends Screen {
         return super.mouseClicked(click, doubled);
     }
 
-    @Override public void onClose() { minecraft.setScreen(parent); }
+    @Override public void onClose() { minecraft.gui.setScreen(parent); }
 }

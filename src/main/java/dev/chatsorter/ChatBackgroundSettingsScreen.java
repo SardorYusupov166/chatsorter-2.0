@@ -2,7 +2,7 @@ package dev.chatsorter;
 
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -73,7 +73,7 @@ public final class ChatBackgroundSettingsScreen extends Screen {
     }
     private int visibleBottom() { return height - 80; }
 
-    private void drawButton(GuiGraphics context, String label, int x, int y, int w, int h,
+    private void drawButton(GuiGraphicsExtractor context, String label, int x, int y, int w, int h,
                             int mouseX, int mouseY, boolean active) {
         boolean hovered = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
         context.fill(x, y, x + w, y + h,
@@ -82,7 +82,7 @@ public final class ChatBackgroundSettingsScreen extends Screen {
         context.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2, 0xFFFFFFFF);
     }
 
-    @Override public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
+    @Override public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         ChatBackgrounds.renderBackground(context, 0, 0, width, height, selectedBackground(), selectedPalette(), selectedDarkening());
         context.fill(0, 0, width, height, 0xA914181D);
         context.fill(0, 0, width, 54, 0xE51B2026);
@@ -203,5 +203,5 @@ public final class ChatBackgroundSettingsScreen extends Screen {
         return true;
     }
 
-    @Override public void onClose() { minecraft.setScreen(parent); }
+    @Override public void onClose() { minecraft.gui.setScreen(parent); }
 }

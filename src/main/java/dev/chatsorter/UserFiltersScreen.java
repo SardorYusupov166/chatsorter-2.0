@@ -1,7 +1,7 @@
 package dev.chatsorter;
 
 import java.util.List;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -30,12 +30,12 @@ public final class UserFiltersScreen extends Screen {
     }
     private int left(){ return width/2-180; }
     private int bottom(){ return height-40; }
-    private void button(GuiGraphics c,String label,int x,int y,int w,int h,int mx,int my) {
+    private void button(GuiGraphicsExtractor c,String label,int x,int y,int w,int h,int mx,int my) {
         boolean hover=mx>=x&&mx<x+w&&my>=y&&my<y+h;
         c.fill(x,y,x+w,y+h,hover?ChatTheme.accent():0xFF30363E);
         c.drawCenteredString(font,label,x+w/2,y+(h-8)/2,0xFFFFFFFF);
     }
-    @Override public void render(GuiGraphics c,int mx,int my,float delta) {
+    @Override public void render(GuiGraphicsExtractor c,int mx,int my,float delta) {
         c.fill(0,0,width,height,0xEE14181D); c.fill(0,0,width,36,ChatTheme.accent());
         c.drawCenteredString(font,"Пользовательские фильтры",width/2,13,0xFFFFFFFF);
         int x=left();
@@ -99,5 +99,5 @@ public final class UserFiltersScreen extends Screen {
         if(y>=248){scroll=Math.max(0,Math.min(Math.max(0,ChatUserFilters.rules().size()-Math.max(1,(bottom()-252)/ROW)),scroll-(int)Math.signum(vertical)));return true;}
         return super.mouseScrolled(x,y,horizontal,vertical);
     }
-    @Override public void onClose(){minecraft.setScreen(parent);}
+    @Override public void onClose(){minecraft.gui.setScreen(parent);}
 }

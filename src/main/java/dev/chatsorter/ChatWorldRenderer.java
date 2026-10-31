@@ -3,10 +3,10 @@ package dev.chatsorter;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.chatsorter.mixin.ChatHudAccess;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Camera;
-import net.minecraft.client.GuiMessage;
+import net.minecraft.client.multiplayer.chat.GuiMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.ChatComponent;
@@ -58,8 +58,8 @@ public final class ChatWorldRenderer {
 
     public static void register() {
         // Late pass: stained glass and water have already drawn to the framebuffer.
-        WorldRenderEvents.END_MAIN.register(ChatWorldRenderer::render);
-        LOGGER.info("[ChatSorter][RPG] Registered world render callback: WorldRenderEvents.END_MAIN");
+        LevelRenderEvents.END_MAIN.register(ChatWorldRenderer::render);
+        LOGGER.info("[ChatSorter][RPG] Registered world render callback: LevelRenderEvents.END_MAIN");
     }
 
     public static boolean shouldHideScreenChat(ChatComponent hud) {
@@ -69,7 +69,7 @@ public final class ChatWorldRenderer {
         // World frustum visibility is purely a rendering concern.
         boolean active = ChatHologramLayout.hideVanillaChat(
             ChatExperienceSettings.rpgModeEnabled, client.player != null,
-            client.level != null, !client.options.hideGui, client.screen == null);
+            client.level != null, !client.gui.hud.isHidden(), client.gui.screen() == null);
         String reason = !active ? "RPG inactive, HUD disabled, or another screen open"
             : SUBMITTED_CHATS.contains(hud)
                 ? "world hologram submitted; vanilla HUD suppressed"
@@ -84,7 +84,7 @@ public final class ChatWorldRenderer {
         renderWithDepth = false;
     }
 
-    private static void render(WorldRenderContext renderContext) {
+    private static void render(LevelRenderContext renderContext) {
         renderCallbacks++;
         reset();
         try {
@@ -95,22 +95,22 @@ public final class ChatWorldRenderer {
         }
     }
 
-    private static void renderFrame(WorldRenderContext renderContext) {
+    private static void renderFrame(LevelRenderContext renderContext) {
         Minecraft client = Minecraft.getInstance();
         Player player = client.player;
         if (!ChatExperienceSettings.rpgModeEnabled || player == null || client.level == null
-                || client.options.hideGui || client.screen != null) {
+                || client.gui.hud.isHidden() || client.gui.screen() != null) {
             String reason = !ChatExperienceSettings.rpgModeEnabled ? "RPG mode is off"
                 : player == null ? "no player"
                 : client.level == null ? "no world"
-                : client.options.hideGui ? "HUD hidden"
-                : "screen open: " + client.screen.getClass().getName();
+                : client.gui.hud.isHidden() ? "HUD hidden"
+                : "screen open: " + client.gui.screen().getClass().getName();
             report("world", "skipped", "world render skipped: " + reason + "; callbacks=" + renderCallbacks, 0);
             return;
         }
 
         ArrayList<ChatComponent> chats = new ArrayList<>();
-        chats.add(client.gui.getChat());
+        chats.add(client.gui.hud.getChat());
         chats.addAll(ChatPanelManager.panelHuds());
         if (chats.isEmpty()) return;
 
@@ -182,7 +182,7 @@ public final class ChatWorldRenderer {
         }
         // Flush before the world render pass finishes: otherwise the panel disappears.
         consumers.endBatch();
-        List<GuiMessage.Line> mainMessages = ((ChatHudAccess)client.gui.getChat()).chatsorter$getVisibleMessages();
+        List<GuiMessage.Line> mainMessages = ((ChatHudAccess)client.gui.hud.getChat()).chatsorter$getVisibleMessages();
         report("world", SUBMITTED_CHATS.isEmpty() ? "outside-view" : "submitted",
             "world hologram vertices submitted (not a GPU visibility confirmation): callbacks=" + renderCallbacks
             + ", version=" + ChatSorter.VERSION + ", chats=" + chats.size()
@@ -196,7 +196,7 @@ public final class ChatWorldRenderer {
             + ", position=" + ChatExperienceSettings.rpgPanelPosition + ", scale=" + layout.scale()
             + ", fov=" + fov + ", aspect=" + aspect + ", mainVisibleRows=" + mainMessages.size()
             + ", consumers=" + className(consumers) + ", event=END_MAIN"
-            + ", matrices=" + className(worldMatrices) + ", screen=" + client.screen,
+            + ", matrices=" + className(worldMatrices) + ", screen=" + client.gui.screen(),
             LOG_INTERVAL_NANOS);
     }
 

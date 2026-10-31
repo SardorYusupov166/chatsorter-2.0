@@ -17,10 +17,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
-import net.minecraft.client.GuiMessage;
+import net.minecraft.client.multiplayer.chat.GuiMessage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ChatScreen;
@@ -55,7 +55,7 @@ public abstract class ChatScreenMixin extends Screen {
 
     // Draw flat tabs above the chat instead of adding vanilla ButtonWidgets.
     @Inject(method = "render", at = @At("TAIL"))
-    private void chatsorter$render(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void chatsorter$render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         chatsorter$pollDrag();
         ChatPanelManager.pollWindowDrag(this.width, this.height);
         // Invisible hit areas: drag the message body; resize by grabbing its edges.
@@ -170,7 +170,7 @@ public abstract class ChatScreenMixin extends Screen {
         double mouseY = click.y();
         Minecraft mc = Minecraft.getInstance();
         ChatComponent panelHud = ChatPanelManager.enabled() ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : null;
-        chatsorter$activeClickHud = panelHud == null ? mc.gui.getChat() : panelHud;
+        chatsorter$activeClickHud = panelHud == null ? mc.gui.hud.getChat() : panelHud;
         if (click.button() == 0 && ChatPanelManager.click(mouseX, mouseY, this.width, this.height)) {
             cir.setReturnValue(true);
             return;
@@ -201,7 +201,7 @@ public abstract class ChatScreenMixin extends Screen {
         int backgroundButtonX = RulesIntegration.available() ? 90 : 5;
         if (click.button() == 0 && click.x() >= backgroundButtonX && click.x() < backgroundButtonX + 82
                 && click.y() >= 7 && click.y() < 24) {
-            mc.setScreen(new dev.chatsorter.ChatBackgroundSettingsScreen((Screen)(Object)this));
+            mc.gui.setScreen(new dev.chatsorter.ChatBackgroundSettingsScreen((Screen)(Object)this));
             cir.setReturnValue(true);
             return;
         }
@@ -276,7 +276,7 @@ public abstract class ChatScreenMixin extends Screen {
         if (mc.player == null) return null;
         double scale = mc.options.chatScale().get();
         if (scale <= 0) return null;
-        ChatComponent hud = ChatPanelManager.enabled() ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : mc.gui.getChat();
+        ChatComponent hud = ChatPanelManager.enabled() ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : mc.gui.hud.getChat();
         if (hud == null) return null;
         double chatX = ChatPanelManager.localX(hud, mouseX);
         double chatBottom = this.height - 40 + ChatPanelManager.offsetY(hud);
@@ -303,7 +303,7 @@ public abstract class ChatScreenMixin extends Screen {
             : ChatSorter.entryForHudMessage(messages.get(sourceIndex).content());
     }
 
-    private void chatsorter$renderSelection(GuiGraphics context, int mouseX, int mouseY) {
+    private void chatsorter$renderSelection(GuiGraphicsExtractor context, int mouseX, int mouseY) {
         if (ChatSelection.isEmpty()) return;
         int x = 5, y = 69, gap = 3;
         int[] widths = {48, 57, 57, 38, 44, 44};
@@ -368,11 +368,11 @@ public abstract class ChatScreenMixin extends Screen {
         return false;
     }
 
-    private void chatsorter$renderSelectedRows(GuiGraphics context) {
+    private void chatsorter$renderSelectedRows(GuiGraphicsExtractor context) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || ChatSelection.isEmpty()) return;
         List<ChatComponent> huds = ChatPanelManager.enabled()
-            ? ChatPanelManager.panelHuds() : List.of(mc.gui.getChat());
+            ? ChatPanelManager.panelHuds() : List.of(mc.gui.hud.getChat());
         double scale = mc.options.chatScale().get();
         double lineHeight = 9.0 * (mc.options.chatLineSpacing().get() + 1.0) * scale;
         for (ChatComponent hud : huds) {
@@ -409,13 +409,13 @@ public abstract class ChatScreenMixin extends Screen {
         }
     }
 
-    private void chatsorter$renderHoveredRow(GuiGraphics context, int mouseX, int mouseY) {
+    private void chatsorter$renderHoveredRow(GuiGraphicsExtractor context, int mouseX, int mouseY) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
         ChatHistoryEntry hovered = chatsorter$entryAt(mouseX, mouseY);
         if (hovered == null) return;
         ChatComponent hud = ChatPanelManager.enabled()
-            ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : mc.gui.getChat();
+            ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : mc.gui.hud.getChat();
         if (hud == null) return;
         ChatHudAccess access = (ChatHudAccess)hud;
         List<GuiMessage.Line> lines = access.chatsorter$getVisibleMessages();
@@ -507,7 +507,7 @@ public abstract class ChatScreenMixin extends Screen {
     private boolean chatsorter$openCopyMenu(double mouseX, double mouseY) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return false;
-        ChatComponent hud = ChatPanelManager.enabled() ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : mc.gui.getChat();
+        ChatComponent hud = ChatPanelManager.enabled() ? ChatPanelManager.hudAt(mouseX, mouseY, this.height) : mc.gui.hud.getChat();
         if (hud == null) return false;
         double scale = mc.options.chatScale().get();
         if (scale <= 0) return false;
@@ -537,7 +537,7 @@ public abstract class ChatScreenMixin extends Screen {
         return true;
     }
     private int chatsorter$copyMenuRows() { return chatsorter$copyMenuHasJump ? 8 : 7; }
-    private void chatsorter$renderCopyMenu(GuiGraphics context, int mouseX, int mouseY) {
+    private void chatsorter$renderCopyMenu(GuiGraphicsExtractor context, int mouseX, int mouseY) {
         ChatHistoryEntry entry = chatsorter$copyMenuEntry;
         if (entry == null) return;
         String[] copyLabels = {"Копировать текст", "Текст + исходное время", "Копировать с форматированием",
@@ -597,7 +597,7 @@ public abstract class ChatScreenMixin extends Screen {
     private void chatsorter$scrollToEntry(ChatHistoryEntry target) {
         Minecraft mc = Minecraft.getInstance();
         ChatComponent panelHud = ChatPanelManager.enabled() ? ChatPanelManager.hudContaining(target) : null;
-        ChatComponent hud = panelHud == null ? mc.gui.getChat() : panelHud;
+        ChatComponent hud = panelHud == null ? mc.gui.hud.getChat() : panelHud;
         ChatHudAccess access = (ChatHudAccess) hud;
         List<GuiMessage> messages = access.chatsorter$getMessages();
         int targetIndex = -1;

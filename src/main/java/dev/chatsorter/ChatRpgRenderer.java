@@ -1,6 +1,6 @@
 package dev.chatsorter;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /** Lightweight, texture-free dark system frame for RPG-styled chat HUDs. */
 public final class ChatRpgRenderer {
@@ -11,7 +11,7 @@ public final class ChatRpgRenderer {
 
     public static int accent(int palette) { return ChatTheme.bright(palette); }
 
-    public static void renderFrame(GuiGraphics context, int x, int y, int width, int height,
+    public static void renderFrame(GuiGraphicsExtractor context, int x, int y, int width, int height,
                                    int palette, int tick, float tickDelta) {
         if (width <= 0 || height <= 0) return;
         boolean pulse = ChatExperienceSettings.rpgAnimationEnabled;
@@ -31,7 +31,7 @@ public final class ChatRpgRenderer {
         if (ChatExperienceSettings.rpgParticlesEnabled) drawParticles(context, x, y, width, height, tick, tickDelta);
     }
 
-    public static void renderHeader(GuiGraphics context, int x, int y, int width, int height, int palette) {
+    public static void renderHeader(GuiGraphicsExtractor context, int x, int y, int width, int height, int palette) {
         if (width <= 0 || height <= 0) return;
         int primary = accent(palette);
         context.fill(x, y, x + width, y + height, 0xE3111020);
@@ -42,7 +42,7 @@ public final class ChatRpgRenderer {
         context.fill(x + width - cut, y + height - 2, x + width, y + height, primary);
     }
 
-    private static void drawCorners(GuiGraphics context, int x, int y, int width, int height, int primary) {
+    private static void drawCorners(GuiGraphicsExtractor context, int x, int y, int width, int height, int primary) {
         int corner = Math.max(1, Math.min(12, Math.min(width, height)));
         int thickness = Math.min(2, corner);
         int color = withAlpha(ICE, 235);
@@ -56,7 +56,7 @@ public final class ChatRpgRenderer {
         context.fill(x + width - thickness, y + height - corner, x + width, y + height, color);
     }
 
-    private static void drawParticles(GuiGraphics context, int x, int y, int width, int height, int tick, float delta) {
+    private static void drawParticles(GuiGraphicsExtractor context, int x, int y, int width, int height, int tick, float delta) {
         double time = tick + delta;
         for (int i = 0; i < 6; i++) {
             double phase = time * 0.025 + i * (Math.PI * 2.0 / 6.0);
@@ -74,7 +74,7 @@ public final class ChatRpgRenderer {
         }
     }
 
-    private static void outline(GuiGraphics context, int x, int y, int width, int height, int color) {
+    private static void outline(GuiGraphicsExtractor context, int x, int y, int width, int height, int color) {
         if (width <= 0 || height <= 0) return;
         context.fill(x, y, x + width, y + 1, color);
         context.fill(x, y + height - 1, x + width, y + height, color);

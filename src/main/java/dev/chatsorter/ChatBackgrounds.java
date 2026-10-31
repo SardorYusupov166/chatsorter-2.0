@@ -4,7 +4,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
@@ -119,12 +119,12 @@ public final class ChatBackgrounds {
         for (LocalImage image : customImages()) requestTexture(image.id(), true);
     }
 
-    public static void renderBackground(GuiGraphics context, int x, int y, int width, int height) {
+    public static void renderBackground(GuiGraphicsExtractor context, int x, int y, int width, int height) {
         load();
         renderBackground(context, x, y, width, height, selected, ChatTheme.index(), darkening);
     }
 
-    public static void renderBackground(GuiGraphics context, int x, int y, int width, int height,
+    public static void renderBackground(GuiGraphicsExtractor context, int x, int y, int width, int height,
                                         String imageId, int palette, int darkness) {
         load();
         if (width <= 0 || height <= 0 || "none".equals(imageId)) return;
@@ -140,7 +140,7 @@ public final class ChatBackgrounds {
         context.fill(x + width - 1, y, x + width, y + height, border);
     }
 
-    public static void renderPreview(GuiGraphics context, String id, int x, int y, int width, int height) {
+    public static void renderPreview(GuiGraphicsExtractor context, String id, int x, int y, int width, int height) {
         if ("none".equals(id)) {
             context.fill(x, y, x + width, y + height, 0xFF20252B);
             context.fill(x + width / 2 - 15, y + height / 2 - 1, x + width / 2 + 15, y + height / 2 + 1, ChatTheme.bright());
@@ -149,7 +149,7 @@ public final class ChatBackgrounds {
         renderImage(context, id, true, x, y, width, height);
     }
 
-    private static void renderImage(GuiGraphics context, String id, boolean thumbnail, int x, int y, int width, int height) {
+    private static void renderImage(GuiGraphicsExtractor context, String id, boolean thumbnail, int x, int y, int width, int height) {
         TextureInfo info = TEXTURES.get(textureKey(id, thumbnail));
         if (info == null) {
             context.fill(x, y, x + width, y + height, 0xFF20252B);

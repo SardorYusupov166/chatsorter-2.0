@@ -10,13 +10,13 @@ public final class AlertHotkey {
     private static boolean prompted=false;
     public static void load(){try{if(Files.exists(PATH)){Properties p=new Properties();try(var in=Files.newInputStream(PATH)){p.load(in);}key=Integer.parseInt(p.getProperty("key","-1"));}}catch(Exception ignored){}}
     public static boolean needsSetup(){return key<0 && !prompted;}
-    public static void prompt(){prompted=true;Minecraft mc=Minecraft.getInstance();mc.setScreen(new HotkeySetupScreen(mc.screen));}
+    public static void prompt(){prompted=true;Minecraft mc=Minecraft.getInstance();mc.gui.setScreen(new HotkeySetupScreen(mc.gui.screen()));}
     public static String keyName(){return key<0?"Не назначена":GLFW.glfwGetKeyName(key,0)==null?"Код "+key:GLFW.glfwGetKeyName(key,0).toUpperCase(java.util.Locale.ROOT);}
     public static void assign(int newKey){key=newKey;wasDown=true;try{Files.createDirectories(PATH.getParent());Properties p=new Properties();p.setProperty("key",Integer.toString(key));try(var out=Files.newOutputStream(PATH)){p.store(out,"ChatSorter alert screen key");}}catch(Exception ignored){}}
     public static void tick(Minecraft mc){
         if(key<0 || mc.getWindow()==null)return;
         boolean down=GLFW.glfwGetKey(mc.getWindow().handle(),key)==GLFW.GLFW_PRESS;
-        if(down && !wasDown && mc.screen==null) mc.setScreen(new AlertSettingsScreen(mc.screen));
+        if(down && !wasDown && mc.gui.screen()==null) mc.gui.setScreen(new AlertSettingsScreen(mc.gui.screen()));
         wasDown=down;
     }
     private AlertHotkey(){}

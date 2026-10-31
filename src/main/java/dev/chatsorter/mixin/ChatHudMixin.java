@@ -15,11 +15,11 @@ import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.List;
-import net.minecraft.client.GuiMessage;
-import net.minecraft.client.GuiMessageTag;
+import net.minecraft.client.multiplayer.chat.GuiMessage;
+import net.minecraft.client.multiplayer.chat.GuiMessageTag;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MessageSignature;
@@ -45,8 +45,8 @@ public abstract class ChatHudMixin {
         return ChatSorter.maxChatHistory();
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/gui/Font;IIIZZ)V", at = @At("HEAD"), cancellable = true)
-    private void chatsorter$translate(GuiGraphics context, Font textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
+    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIIZZ)V", at = @At("HEAD"), cancellable = true)
+    private void chatsorter$translate(GuiGraphicsExtractor context, Font textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
         ChatComponent hud = (ChatComponent)(Object)this;
         chatsorter$panelsRendered = false;
         if (dev.chatsorter.ChatWorldRenderer.shouldHideScreenChat(hud)) {
@@ -85,8 +85,8 @@ public abstract class ChatHudMixin {
             }
         }
     }
-    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/gui/Font;IIIZZ)V", at = @At("RETURN"))
-    private void chatsorter$restore(GuiGraphics context, Font textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
+    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIIZZ)V", at = @At("RETURN"))
+    private void chatsorter$restore(GuiGraphicsExtractor context, Font textRenderer, int currentTick, int mouseX, int mouseY, boolean focused, boolean chatHidden, CallbackInfo ci) {
         if (chatsorter$matrixPushed) {
             if (!chatHidden) chatsorter$renderAlertHighlights(context);
             context.pose().popMatrix();
@@ -96,10 +96,10 @@ public abstract class ChatHudMixin {
     }
 
     @org.spongepowered.asm.mixin.Unique
-    private void chatsorter$renderPanels(GuiGraphics context, Font textRenderer, int currentTick,
+    private void chatsorter$renderPanels(GuiGraphicsExtractor context, Font textRenderer, int currentTick,
                                          int mouseX, int mouseY, boolean focused, boolean chatHidden) {
         if (!chatsorter$panelsRendered && !chatHidden && ChatPanelManager.enabled()
-                && (ChatComponent)(Object)this == Minecraft.getInstance().gui.getChat()) {
+                && (ChatComponent)(Object)this == Minecraft.getInstance().gui.hud.getChat()) {
             chatsorter$panelsRendered = true;
             ChatPanelManager.render(context, textRenderer, currentTick, mouseX, mouseY, focused, false);
         }
@@ -109,7 +109,7 @@ public abstract class ChatHudMixin {
         if (!ChatSorter.capture(message, signature, indicator)) ci.cancel();
     }
 
-    private void chatsorter$renderAlertHighlights(GuiGraphics context) {
+    private void chatsorter$renderAlertHighlights(GuiGraphicsExtractor context) {
         ChatComponent hud = (ChatComponent)(Object)this;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;

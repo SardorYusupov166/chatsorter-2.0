@@ -2,7 +2,7 @@ package dev.chatsorter;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.GuiMessageTag;
+import net.minecraft.client.multiplayer.chat.GuiMessageTag;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.network.chat.ClickEvent;
@@ -10,7 +10,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MessageSignature;
 import net.minecraft.network.chat.Style;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.minecraft.resources.Identifier;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -175,7 +176,7 @@ public class ChatSorter implements ClientModInitializer {
     private static void refreshChat() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
-        ChatComponent hud = mc.gui.getChat();
+        ChatComponent hud = mc.gui.hud.getChat();
         replaying = true;
         HUD_ENTRIES.clear();
         try {
@@ -200,17 +201,17 @@ public class ChatSorter implements ClientModInitializer {
         AlertHotkey.load();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             AlertHotkey.tick(client);
-            if (client.player != null && client.screen == null && AlertHotkey.needsSetup()) AlertHotkey.prompt();
+            if (client.player != null && client.gui.screen() == null && AlertHotkey.needsSetup()) AlertHotkey.prompt();
         });
-        HudRenderCallback.EVENT.register((context, tickCounter) -> {
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("chatsorter", "unread_dm"), (context, tickCounter) -> {
             int unreadDm = unread[Tab.DM.ordinal()];
             if (unreadDm <= 0) return;
             Minecraft mc = Minecraft.getInstance();
-            if (mc.player == null || mc.options.hideGui) return;
+            if (mc.player == null || mc.gui.hud.isHidden()) return;
             String label = "ЛС: " + unreadDm + " непрочитанных";
             int textWidth = mc.font.width(label);
             int right = context.guiWidth() - 6;
-            int top = mc.screen instanceof net.minecraft.client.gui.screens.ChatScreen ? 29 : 7;
+            int top = mc.gui.screen() instanceof net.minecraft.client.gui.screens.ChatScreen ? 29 : 7;
             context.fill(right - textWidth - 14, top, right, top + 18, 0xDD292D32);
             context.fill(right - textWidth - 14, top, right - textWidth - 11, top + 18, ChatTheme.bright());
             context.drawString(mc.font, label, right - textWidth - 7, top + 5, 0xFFFFFFFF);
@@ -224,15 +225,15 @@ public class ChatSorter implements ClientModInitializer {
                 openServerHistory(server);
                 ChatBookmarks.load(activeServerKey);
                 refreshChat();
-                client.gui.getChat().addMessage(Component.literal("[ChatSorter] Мод успешно загружен!").withStyle(style -> style.withColor(0x55FF55)));
-                client.gui.getChat().addMessage(Component.literal("[ChatSorter] Режим RPG: "
+                client.gui.hud.getChat().addMessage(Component.literal("[ChatSorter] Мод успешно загружен!").withStyle(style -> style.withColor(0x55FF55)));
+                client.gui.hud.getChat().addMessage(Component.literal("[ChatSorter] Режим RPG: "
                     + (ChatExperienceSettings.rpgModeEnabled ? "ВКЛ — мировые голограммы активны" : "ВЫКЛ — включите в настройках уведомлений → настройках чата"))
                     .withStyle(style -> style.withColor(ChatExperienceSettings.rpgModeEnabled ? 0xFF9BE8FF : 0xFFFFC56B)));
-                client.gui.getChat().addMessage(Component.literal("Автор: ").withStyle(style -> style.withColor(0xFFCC55))
+                client.gui.hud.getChat().addMessage(Component.literal("Автор: ").withStyle(style -> style.withColor(0xFFCC55))
                     .append(Component.literal("mlpgod").withStyle(style -> style.withColor(0xFFFFFF))));
-                client.gui.getChat().addMessage(Component.literal("Сервер: ").withStyle(style -> style.withColor(0xFFCC55))
+                client.gui.hud.getChat().addMessage(Component.literal("Сервер: ").withStyle(style -> style.withColor(0xFFCC55))
                     .append(Component.literal("MigosMC").withStyle(style -> style.withColor(0xFFFFFF))));
-                client.gui.getChat().addMessage(Component.literal("ChatSorter " + VERSION + " | mlpgod - MigosMC").withStyle(style -> style.withColor(0xAAAAAA)));
+                client.gui.hud.getChat().addMessage(Component.literal("ChatSorter " + VERSION + " | mlpgod - MigosMC").withStyle(style -> style.withColor(0xAAAAAA)));
             });
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {

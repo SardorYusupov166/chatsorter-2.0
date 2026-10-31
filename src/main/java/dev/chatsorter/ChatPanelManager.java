@@ -13,7 +13,7 @@ import java.util.Properties;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.network.chat.Component;
 
@@ -421,7 +421,7 @@ public final class ChatPanelManager {
         return (int)Math.round(screenHeight - 40 + panel.y - panel.height * scale - HEADER_HEIGHT - 2);
     }
 
-    public static void render(GuiGraphics context, Font renderer, int currentTick, int mouseX, int mouseY,
+    public static void render(GuiGraphicsExtractor context, Font renderer, int currentTick, int mouseX, int mouseY,
                               boolean focused, boolean chatHidden) {
         if (!enabled()) return;
         Minecraft mc = Minecraft.getInstance();
@@ -469,7 +469,7 @@ public final class ChatPanelManager {
     private static int popupVisibleRows(Panel panel, int screenHeight) {
         return Math.max(1, Math.min(ChatSorter.panelFilterToggles().size(), (screenHeight - popupY(panel, screenHeight) - 8) / popupRowHeight()));
     }
-    private static void renderFilterPopup(GuiGraphics context, Font renderer, Panel panel, int x, int top,
+    private static void renderFilterPopup(GuiGraphicsExtractor context, Font renderer, Panel panel, int x, int top,
                                           int screenHeight, int mouseX, int mouseY) {
         List<ChatSorter.FilterToggle> options = ChatSorter.panelFilterToggles();
         int rows = popupVisibleRows(panel, screenHeight);
