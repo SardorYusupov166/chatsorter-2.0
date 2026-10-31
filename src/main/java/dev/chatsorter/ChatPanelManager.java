@@ -428,7 +428,7 @@ public final class ChatPanelManager {
         double scale = mc.options.chatScale().get();
         for (Panel panel : PANELS) {
             if (panel.hud == null) panel.hud = new ChatComponent(mc);
-            panel.hud.render(context, renderer, currentTick, mouseX - panel.x, mouseY - panel.y, focused, chatHidden);
+            panel.hud.extractRenderState(context, renderer, currentTick, mouseX - panel.x, mouseY - panel.y, focused ? ChatComponent.DisplayMode.FOREGROUND : ChatComponent.DisplayMode.BACKGROUND, false);
             double baseline = mc.getWindow().getGuiScaledHeight() - 40 + panel.y;
             if (!focused) continue;
             int x = panel.x;

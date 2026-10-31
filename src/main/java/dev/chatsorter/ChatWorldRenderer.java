@@ -114,7 +114,7 @@ public final class ChatWorldRenderer {
         chats.addAll(ChatPanelManager.panelHuds());
         if (chats.isEmpty()) return;
 
-        Camera camera = client.gameRenderer.getMainCamera();
+        Camera camera = client.gameRenderer.mainCamera();
         Quaternionf cameraFacing = new Quaternionf(camera.rotation());
         // Anchor the hologram to the PLAYER, never to the third-person camera.
         // Follow-view tracks the player's interpolated look yaw, not camera position.
@@ -146,7 +146,7 @@ public final class ChatWorldRenderer {
 
         // Vanilla world buffers are no longer available at END_MAIN.
         MultiBufferSource.BufferSource consumers = HOLOGRAM_CONSUMERS;
-        PoseStack worldMatrices = renderContext.matrices();
+        PoseStack worldMatrices = renderContext.poseStack();
         if (worldMatrices == null) {
             report("world", "missing-context", "world render matrix stack unavailable", LOG_INTERVAL_NANOS);
             return;
