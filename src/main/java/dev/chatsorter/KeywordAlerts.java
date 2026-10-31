@@ -1,9 +1,9 @@
 package dev.chatsorter;
 
-import net.minecraft.client.MinecraftClient;
 import java.nio.file.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import net.minecraft.client.Minecraft;
 
 /** Local keyword allowlist. Matching happens on every incoming message, independent of the selected tab. */
 public final class KeywordAlerts {
@@ -35,7 +35,7 @@ public final class KeywordAlerts {
     public static List<String> sounds() {
         if (soundIds.isEmpty()) {
             List<String> ids = new ArrayList<>();
-            for (net.minecraft.util.Identifier id : net.minecraft.registry.Registries.SOUND_EVENT.getIds()) ids.add(id.toString());
+            for (net.minecraft.resources.Identifier id : net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.keySet()) ids.add(id.toString());
             ids.sort(String.CASE_INSENSITIVE_ORDER);
             soundIds = List.copyOf(ids);
         }
@@ -109,7 +109,7 @@ public final class KeywordAlerts {
         return HEAD.matcher(message.replaceAll("§[0-9a-fk-orA-FK-OR]", "")
             .replace('\u00a0', ' ').replace('\u200b', ' ')).replaceAll("").strip();
     }
-    private static String ownReason(String message, MinecraftClient mc) {
+    private static String ownReason(String message, Minecraft mc) {
         if (mc.player == null) return "NO_PLAYER";
         String nick = mc.player.getName().getString();
         String s = normalize(message);
@@ -127,7 +127,7 @@ public final class KeywordAlerts {
             ChatSorterDiagnostics.alertNoMatch(message, List.of());
             return false;
         }
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         String reason = ownReason(message, mc);
         String normalized = normalize(message);
         java.util.regex.Matcher chatLine = CHAT_AUTHOR.matcher(normalized);

@@ -2,7 +2,7 @@ package dev.chatsorter;
 
 import java.util.function.Consumer;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screens.Screen;
 
 /** Optional entrypoint; ChatSorter does not depend on the rules addon. */
 public final class RulesIntegration {

@@ -1,11 +1,5 @@
 package dev.chatsorter;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.hud.ChatHud;
-import net.minecraft.text.Text;
-
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,6 +11,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.network.chat.Component;
 
 /** Independent floating chat windows backed by the shared ChatSorter history. */
 public final class ChatPanelManager {
@@ -26,7 +25,7 @@ public final class ChatPanelManager {
     private static final int MIN_WIDTH = 100;
     private static final int MIN_HEIGHT = 54;
     private static final ArrayList<Panel> PANELS = new ArrayList<>();
-    private static final IdentityHashMap<Text, ChatHistoryEntry> ENTRIES = new IdentityHashMap<>();
+    private static final IdentityHashMap<Component, ChatHistoryEntry> ENTRIES = new IdentityHashMap<>();
     private static boolean rebuilding;
     private static String serverKey = "unknown";
     private static String baseBackground = "none";
@@ -40,7 +39,7 @@ public final class ChatPanelManager {
 
     private static final class Panel {
         final int id;
-        ChatHud hud;
+        ChatComponent hud;
         final LinkedHashSet<String> filters = new LinkedHashSet<>();
         boolean filterPopup;
         int filterPopupScroll;
@@ -71,44 +70,44 @@ public final class ChatPanelManager {
     /** Includes the built-in Minecraft chat, which is always the first chat. */
     public static int count() { return 1 + PANELS.size(); }
     public static boolean canAdd() { return count() < MAX_WINDOWS; }
-    public static boolean isPanelHud(ChatHud hud) { return panelFor(hud) != null; }
-    public static ChatHistoryEntry entryForHudMessage(Text text) { return ENTRIES.get(text); }
-    public static List<ChatHud> panelHuds() {
-        ArrayList<ChatHud> result = new ArrayList<>();
+    public static boolean isPanelHud(ChatComponent hud) { return panelFor(hud) != null; }
+    public static ChatHistoryEntry entryForHudMessage(Component text) { return ENTRIES.get(text); }
+    public static List<ChatComponent> panelHuds() {
+        ArrayList<ChatComponent> result = new ArrayList<>();
         for (Panel panel : PANELS) if (panel.hud != null) result.add(panel.hud);
         return result;
     }
-    public static ChatHud hudContaining(ChatHistoryEntry entry) {
+    public static ChatComponent hudContaining(ChatHistoryEntry entry) {
         if (entry == null) return null;
         for (Panel panel : PANELS) if (panel.entries.contains(entry)) return panel.hud;
         return null;
     }
-    public static Panel panelFor(ChatHud hud) {
+    public static Panel panelFor(ChatComponent hud) {
         if (hud == null) return null;
         for (Panel panel : PANELS) if (panel.hud == hud) return panel;
         return null;
     }
-    public static String background(ChatHud hud) {
+    public static String background(ChatComponent hud) {
         Panel panel = panelFor(hud);
         return panel == null ? baseBackground : panel.background;
     }
-    public static int palette(ChatHud hud) {
+    public static int palette(ChatComponent hud) {
         Panel panel = panelFor(hud);
         return panel == null ? basePalette : panel.palette;
     }
-    public static int darkening(ChatHud hud) {
+    public static int darkening(ChatComponent hud) {
         Panel panel = panelFor(hud);
         return panel == null ? baseDarkening : panel.darkening;
     }
-    public static int id(ChatHud hud) {
+    public static int id(ChatComponent hud) {
         Panel panel = panelFor(hud);
         return panel == null ? -1 : panel.id;
     }
-    public static String style(ChatHud hud) {
+    public static String style(ChatComponent hud) {
         Panel panel = panelFor(hud);
         return panel == null ? baseStyle : panel.style;
     }
-    public static boolean usesRpgStyle(ChatHud hud) {
+    public static boolean usesRpgStyle(ChatComponent hud) {
         return ChatExperienceSettings.rpgModeEnabled && "dark_system".equals(style(hud));
     }
     private static Panel panelById(int id) {
@@ -177,7 +176,7 @@ public final class ChatPanelManager {
 
     public static void loadServer(String key) {
         serverKey = key == null || key.isBlank() ? "unknown" : key;
-        for (Panel panel : PANELS) if (panel.hud != null) panel.hud.clear(false);
+        for (Panel panel : PANELS) if (panel.hud != null) panel.hud.clearMessages(false);
         PANELS.clear();
         ENTRIES.clear();
         dragging = null;
@@ -240,7 +239,7 @@ public final class ChatPanelManager {
             for (int i = 0; i < 8; i++) hex.append(String.format(java.util.Locale.ROOT, "%02x", hash[i]));
             id = hex.toString();
         } catch (Exception ignored) { id = "unknown"; }
-        return MinecraftClient.getInstance().runDirectory.toPath().resolve("config").resolve("chatsorter")
+        return Minecraft.getInstance().gameDirectory.toPath().resolve("config").resolve("chatsorter")
             .resolve("panels").resolve(id + ".properties");
     }
 
@@ -279,13 +278,13 @@ public final class ChatPanelManager {
 
     public static boolean addWindow() {
         if (!canAdd()) return false;
-        MinecraftClient mc = MinecraftClient.getInstance();
+        Minecraft mc = Minecraft.getInstance();
         int id = nextId++;
         Panel panel = new Panel(id);
         panel.x = 24 + PANELS.size() * 28;
         panel.y = -PANELS.size() * 18;
-        panel.width = clamp((int)Math.round(ChatHud.getWidth(mc.options.getChatWidth().getValue())), MIN_WIDTH, 1200);
-        panel.height = clamp(ChatHud.getHeight(mc.options.getChatHeightFocused().getValue()), MIN_HEIGHT, 1000);
+        panel.width = clamp((int)Math.round(ChatComponent.getWidth(mc.options.chatWidth().get())), MIN_WIDTH, 1200);
+        panel.height = clamp(ChatComponent.getHeight(mc.options.chatHeightFocused().get()), MIN_HEIGHT, 1000);
         PANELS.add(panel);
         save();
         refresh();
@@ -294,7 +293,7 @@ public final class ChatPanelManager {
 
     private static boolean closeWindow(Panel panel) {
         if (PANELS.isEmpty()) return false;
-        if (panel.hud != null) panel.hud.clear(false);
+        if (panel.hud != null) panel.hud.clearMessages(false);
         PANELS.remove(panel);
         if (dragging == panel) dragging = null;
         save();
@@ -303,7 +302,7 @@ public final class ChatPanelManager {
     }
 
     public static void refresh() {
-        if (!enabled() || MinecraftClient.getInstance().player == null) return;
+        if (!enabled() || Minecraft.getInstance().player == null) return;
         rebuilding = true;
         try {
             ENTRIES.clear();
@@ -314,10 +313,10 @@ public final class ChatPanelManager {
     }
 
     private static void rebuild(Panel panel) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (panel.hud == null) panel.hud = new ChatHud(mc);
-        panel.hud.clear(false);
-        panel.hud.resetScroll();
+        Minecraft mc = Minecraft.getInstance();
+        if (panel.hud == null) panel.hud = new ChatComponent(mc);
+        panel.hud.clearMessages(false);
+        panel.hud.resetChatScroll();
         int limit = ChatExperienceSettings.clampDisplayLimit(ChatExperienceSettings.chatDisplayLimit);
         ArrayDeque<ChatHistoryEntry> matches = new ArrayDeque<>(limit);
         for (ChatHistoryEntry entry : ChatSorter.entriesForPanels()) {
@@ -327,9 +326,9 @@ public final class ChatPanelManager {
         }
         panel.entries = List.copyOf(matches);
         for (ChatHistoryEntry entry : matches) {
-            Text text = entry.displayText();
+            Component text = entry.displayText();
             ENTRIES.put(text, entry);
-            panel.hud.addMessage(text);
+            panel.hud.addClientSystemMessage(text);
         }
     }
 
@@ -361,9 +360,9 @@ public final class ChatPanelManager {
                     refresh();
                     return;
                 }
-                Text text = entry.displayText();
+                Component text = entry.displayText();
                 ENTRIES.put(text, entry);
-                panel.hud.addMessage(text);
+                panel.hud.addClientSystemMessage(text);
                 ArrayList<ChatHistoryEntry> next = new ArrayList<>(panel.entries);
                 next.add(entry);
                 panel.entries = List.copyOf(next);
@@ -374,32 +373,32 @@ public final class ChatPanelManager {
         }
     }
 
-    public static int width(ChatHud hud) {
+    public static int width(ChatComponent hud) {
         Panel panel = panelFor(hud);
         return panel == null ? -1 : panel.width;
     }
-    public static int height(ChatHud hud) {
+    public static int height(ChatComponent hud) {
         Panel panel = panelFor(hud);
         return panel == null ? -1 : panel.height;
     }
-    public static int visibleLineCount(ChatHud hud) {
+    public static int visibleLineCount(ChatComponent hud) {
         Panel panel = panelFor(hud);
         if (panel == null) return -1;
-        double lineHeight = 9.0 * (MinecraftClient.getInstance().options.getChatLineSpacing().getValue() + 1.0);
+        double lineHeight = 9.0 * (Minecraft.getInstance().options.chatLineSpacing().get() + 1.0);
         return Math.max(1, (int)Math.floor(panel.height / lineHeight));
     }
-    public static int offsetX(ChatHud hud) {
+    public static int offsetX(ChatComponent hud) {
         Panel panel = panelFor(hud);
         return panel == null ? ChatPosition.x : panel.x;
     }
-    public static int offsetY(ChatHud hud) {
+    public static int offsetY(ChatComponent hud) {
         Panel panel = panelFor(hud);
         return panel == null ? ChatPosition.y : panel.y;
     }
 
-    public static ChatHud hudAt(double mouseX, double mouseY, int screenHeight) {
+    public static ChatComponent hudAt(double mouseX, double mouseY, int screenHeight) {
         if (!enabled()) return null;
-        double scale = MinecraftClient.getInstance().options.getChatScale().getValue();
+        double scale = Minecraft.getInstance().options.chatScale().get();
         if (scale <= 0) return null;
         for (int i = PANELS.size() - 1; i >= 0; i--) {
             Panel panel = PANELS.get(i);
@@ -411,30 +410,30 @@ public final class ChatPanelManager {
         return null;
     }
 
-    public static double localX(ChatHud hud, double mouseX) {
+    public static double localX(ChatComponent hud, double mouseX) {
         Panel panel = panelFor(hud);
-        if (panel == null) return (mouseX - ChatPosition.x) / MinecraftClient.getInstance().options.getChatScale().getValue();
-        return (mouseX - panel.x) / MinecraftClient.getInstance().options.getChatScale().getValue();
+        if (panel == null) return (mouseX - ChatPosition.x) / Minecraft.getInstance().options.chatScale().get();
+        return (mouseX - panel.x) / Minecraft.getInstance().options.chatScale().get();
     }
 
     private static int headerY(Panel panel, int screenHeight) {
-        double scale = MinecraftClient.getInstance().options.getChatScale().getValue();
+        double scale = Minecraft.getInstance().options.chatScale().get();
         return (int)Math.round(screenHeight - 40 + panel.y - panel.height * scale - HEADER_HEIGHT - 2);
     }
 
-    public static void render(DrawContext context, TextRenderer renderer, int currentTick, int mouseX, int mouseY,
+    public static void extractRenderState(GuiGraphicsExtractor context, Font renderer, int currentTick, int mouseX, int mouseY,
                               boolean focused, boolean chatHidden) {
         if (!enabled()) return;
-        MinecraftClient mc = MinecraftClient.getInstance();
-        double scale = mc.options.getChatScale().getValue();
+        Minecraft mc = Minecraft.getInstance();
+        double scale = mc.options.chatScale().get();
         for (Panel panel : PANELS) {
-            if (panel.hud == null) panel.hud = new ChatHud(mc);
-            panel.hud.render(context, renderer, currentTick, mouseX - panel.x, mouseY - panel.y, focused, chatHidden);
-            double baseline = mc.getWindow().getScaledHeight() - 40 + panel.y;
+            if (panel.hud == null) panel.hud = new ChatComponent(mc);
+            panel.hud.extractRenderState(context, renderer, currentTick, mouseX - panel.x, mouseY - panel.y, focused ? ChatComponent.DisplayMode.FOREGROUND : ChatComponent.DisplayMode.BACKGROUND, false);
+            double baseline = mc.getWindow().getGuiScaledHeight() - 40 + panel.y;
             if (!focused) continue;
             int x = panel.x;
             int width = (int)Math.round(panel.width * scale);
-            int top = headerY(panel, mc.getWindow().getScaledHeight());
+            int top = headerY(panel, mc.getWindow().getGuiScaledHeight());
             if (ChatExperienceSettings.rpgModeEnabled && "dark_system".equals(panel.style)) {
                 ChatRpgRenderer.renderHeader(context, x, top, width, HEADER_HEIGHT, panel.palette);
             } else {
@@ -444,19 +443,19 @@ public final class ChatPanelManager {
             String title = "Чат " + (PANELS.indexOf(panel) + 2) + " · " + filterSummary(panel);
             String close = "×";
             context.fill(x + 3, top + 3, x + 24, top + HEADER_HEIGHT - 2, 0x90383E44);
-            context.drawCenteredTextWithShadow(renderer, "▾", x + 13, top + 6, 0xFFE2E5E8);
-            context.drawTextWithShadow(renderer, renderer.trimToWidth(title, Math.max(10, width - 72)), x + 28, top + 6, 0xFFFFFFFF);
+            context.text(renderer, "▾", (x + 13) - renderer.width("▾") / 2, top + 6, 0xFFE2E5E8, true);
+            context.text(renderer, renderer.plainSubstrByWidth(title, Math.max(10, width - 72)), x + 28, top + 6, 0xFFFFFFFF, true);
             int settingsX = x + width - 39;
             context.fill(settingsX, top + 3, settingsX + 16, top + HEADER_HEIGHT - 2, 0x90383E44);
-            context.drawCenteredTextWithShadow(renderer, "⚙", settingsX + 8, top + 6, ChatTheme.bright(panel.palette));
+            context.text(renderer, "⚙", (settingsX + 8) - renderer.width("⚙") / 2, top + 6, ChatTheme.bright(panel.palette), true);
             int closeX = x + width - 19;
             int closeColor = 0xFFFF8D8D;
             context.fill(closeX, top + 3, x + width - 3, top + HEADER_HEIGHT - 2, 0x90383E44);
-            context.drawCenteredTextWithShadow(renderer, close, closeX + 8, top + 6, closeColor);
-            if (panel.filterPopup) renderFilterPopup(context, renderer, panel, x, top, mc.getWindow().getScaledHeight(), mouseX, mouseY);
+            context.text(renderer, close, (closeX + 8) - renderer.width(close) / 2, top + 6, closeColor, true);
+            if (panel.filterPopup) renderFilterPopup(context, renderer, panel, x, top, mc.getWindow().getGuiScaledHeight(), mouseX, mouseY);
             if (panel.unread > 0) {
                 String unread = panel.unread > 999 ? "999+" : Integer.toString(panel.unread);
-                context.drawTextWithShadow(renderer, unread, x + width - 43 - renderer.getWidth(unread), top + 6, 0xFFFF7777);
+                context.text(renderer, unread, x + width - 43 - renderer.width(unread), top + 6, 0xFFFF7777, true);
             }
             panel.unread = 0;
             double bodyTop = baseline - panel.height * scale;
@@ -470,7 +469,7 @@ public final class ChatPanelManager {
     private static int popupVisibleRows(Panel panel, int screenHeight) {
         return Math.max(1, Math.min(ChatSorter.panelFilterToggles().size(), (screenHeight - popupY(panel, screenHeight) - 8) / popupRowHeight()));
     }
-    private static void renderFilterPopup(DrawContext context, TextRenderer renderer, Panel panel, int x, int top,
+    private static void renderFilterPopup(GuiGraphicsExtractor context, Font renderer, Panel panel, int x, int top,
                                           int screenHeight, int mouseX, int mouseY) {
         List<ChatSorter.FilterToggle> options = ChatSorter.panelFilterToggles();
         int rows = popupVisibleRows(panel, screenHeight);
@@ -487,8 +486,8 @@ public final class ChatPanelManager {
             if (mouseX >= px && mouseX < px + pw && mouseY >= ry && mouseY < ry + popupRowHeight())
                 context.fill(px + 1, ry, px + pw - 1, ry + popupRowHeight(), 0x803E4852);
             context.fill(px + 6, ry + 3, px + 15, ry + 12, checked ? ChatTheme.bright(panel.palette) : 0xFF68717A);
-            if (checked) context.drawTextWithShadow(renderer, "✓", px + 7, ry + 2, ChatTheme.text(panel.palette));
-            context.drawTextWithShadow(renderer, renderer.trimToWidth(option.label(), pw - 30), px + 21, ry + 3, 0xFFE3E7EB);
+            if (checked) context.text(renderer, "✓", px + 7, ry + 2, ChatTheme.text(panel.palette), true);
+            context.text(renderer, renderer.plainSubstrByWidth(option.label(), pw - 30), px + 21, ry + 3, 0xFFE3E7EB, true);
         }
         context.disableScissor();
     }
@@ -499,7 +498,7 @@ public final class ChatPanelManager {
             return true;
         }
         if (!enabled()) return false;
-        double scale = MinecraftClient.getInstance().options.getChatScale().getValue();
+        double scale = Minecraft.getInstance().options.chatScale().get();
         if (scale <= 0) return false;
         for (int i = PANELS.size() - 1; i >= 0; i--) {
             Panel panel = PANELS.get(i);
@@ -532,8 +531,8 @@ public final class ChatPanelManager {
                     return true;
                 }
                 if (mouseX >= x + width - 39 && mouseX < x + width - 22 && inHeader) {
-                    MinecraftClient.getInstance().setScreen(new ChatBackgroundSettingsScreen(
-                        MinecraftClient.getInstance().currentScreen, panel.id));
+                    Minecraft.getInstance().gui.setScreen(new ChatBackgroundSettingsScreen(
+                        Minecraft.getInstance().gui.screen(), panel.id));
                     return true;
                 }
                 if (mouseX >= x + 2 && mouseX < x + 26 && inHeader) {
@@ -567,8 +566,8 @@ public final class ChatPanelManager {
 
     public static boolean pollWindowDrag(int screenWidth, int screenHeight) {
         if (dragging == null) return false;
-        MinecraftClient mc = MinecraftClient.getInstance();
-        long window = mc.getWindow().getHandle();
+        Minecraft mc = Minecraft.getInstance();
+        long window = mc.getWindow().handle();
         if (org.lwjgl.glfw.GLFW.glfwGetMouseButton(window, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT)
                 != org.lwjgl.glfw.GLFW.GLFW_PRESS) {
             dragging = null;
@@ -576,11 +575,11 @@ public final class ChatPanelManager {
             save();
             return false;
         }
-        double x = mc.mouse.getX() * mc.getWindow().getScaledWidth() / mc.getWindow().getWidth();
-        double y = mc.mouse.getY() * mc.getWindow().getScaledHeight() / mc.getWindow().getHeight();
+        double x = mc.mouseHandler.xpos() * mc.getWindow().getGuiScaledWidth() / mc.getWindow().getScreenWidth();
+        double y = mc.mouseHandler.ypos() * mc.getWindow().getGuiScaledHeight() / mc.getWindow().getScreenHeight();
         double dx = x - lastX, dy = y - lastY;
         if (resizing) {
-            double scale = Math.max(.01, mc.options.getChatScale().getValue());
+            double scale = Math.max(.01, mc.options.chatScale().get());
             int oldWidth = dragging.width;
             int oldHeight = dragging.height;
             double newWidth = oldWidth;
@@ -598,7 +597,7 @@ public final class ChatPanelManager {
             dragging.x += (int)Math.round(dx);
             dragging.y += (int)Math.round(dy);
         }
-        double scale = mc.options.getChatScale().getValue();
+        double scale = mc.options.chatScale().get();
         int w = (int)Math.round(dragging.width * scale);
         int h = (int)Math.round(dragging.height * scale);
         dragging.x = clamp(dragging.x, 4 - w + 48, screenWidth - 4);
@@ -621,9 +620,9 @@ public final class ChatPanelManager {
                 return true;
             }
         }
-        ChatHud hud = hudAt(mouseX, mouseY, screenHeight);
+        ChatComponent hud = hudAt(mouseX, mouseY, screenHeight);
         if (hud == null) return false;
-        hud.scroll((int)Math.signum(amount) * 3);
+        hud.scrollChat((int)Math.signum(amount) * 3);
         return true;
     }
 

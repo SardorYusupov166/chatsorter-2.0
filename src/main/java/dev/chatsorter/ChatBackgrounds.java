@@ -1,14 +1,13 @@
 package dev.chatsorter;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.NativeImage;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.Identifier;
-
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.Identifier;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
@@ -120,12 +119,12 @@ public final class ChatBackgrounds {
         for (LocalImage image : customImages()) requestTexture(image.id(), true);
     }
 
-    public static void renderBackground(DrawContext context, int x, int y, int width, int height) {
+    public static void renderBackground(GuiGraphicsExtractor context, int x, int y, int width, int height) {
         load();
         renderBackground(context, x, y, width, height, selected, ChatTheme.index(), darkening);
     }
 
-    public static void renderBackground(DrawContext context, int x, int y, int width, int height,
+    public static void renderBackground(GuiGraphicsExtractor context, int x, int y, int width, int height,
                                         String imageId, int palette, int darkness) {
         load();
         if (width <= 0 || height <= 0 || "none".equals(imageId)) return;
@@ -141,7 +140,7 @@ public final class ChatBackgrounds {
         context.fill(x + width - 1, y, x + width, y + height, border);
     }
 
-    public static void renderPreview(DrawContext context, String id, int x, int y, int width, int height) {
+    public static void renderPreview(GuiGraphicsExtractor context, String id, int x, int y, int width, int height) {
         if ("none".equals(id)) {
             context.fill(x, y, x + width, y + height, 0xFF20252B);
             context.fill(x + width / 2 - 15, y + height / 2 - 1, x + width / 2 + 15, y + height / 2 + 1, ChatTheme.bright());
@@ -150,7 +149,7 @@ public final class ChatBackgrounds {
         renderImage(context, id, true, x, y, width, height);
     }
 
-    private static void renderImage(DrawContext context, String id, boolean thumbnail, int x, int y, int width, int height) {
+    private static void renderImage(GuiGraphicsExtractor context, String id, boolean thumbnail, int x, int y, int width, int height) {
         TextureInfo info = TEXTURES.get(textureKey(id, thumbnail));
         if (info == null) {
             context.fill(x, y, x + width, y + height, 0xFF20252B);
@@ -168,7 +167,7 @@ public final class ChatBackgrounds {
             regionHeight = Math.max(1, (int)Math.round(info.width() / targetAspect));
             v = (info.height() - regionHeight) / 2.0f;
         }
-        context.drawTexture(RenderPipelines.GUI_TEXTURED, info.identifier(), x, y, u, v,
+        context.blit(RenderPipelines.GUI_TEXTURED, info.identifier(), x, y, u, v,
             width, height, regionWidth, regionHeight, info.width(), info.height(), 0xFFFFFFFF);
     }
 
@@ -187,12 +186,12 @@ public final class ChatBackgrounds {
                 try (InputStream in = Files.newInputStream(file)) { image = NativeImage.read(in); }
                 if (image == null) throw new IllegalArgumentException("Не удалось прочитать изображение");
                 int imageWidth = image.getWidth(), imageHeight = image.getHeight();
-                MinecraftClient.getInstance().execute(() -> {
+                Minecraft.getInstance().execute(() -> {
                     try {
-                        Identifier textureId = Identifier.of("chatsorter", "background/" + safe(id) + (thumbnail ? "_thumb" : ""));
-                        NativeImageBackedTexture texture = new NativeImageBackedTexture(
+                        Identifier textureId = Identifier.fromNamespaceAndPath("chatsorter", "background/" + safe(id) + (thumbnail ? "_thumb" : ""));
+                        DynamicTexture texture = new DynamicTexture(
                             () -> "ChatSorter background " + id, image);
-                        MinecraftClient.getInstance().getTextureManager().registerTexture(textureId, texture);
+                        Minecraft.getInstance().getTextureManager().register(textureId, texture);
                         TEXTURES.put(key, new TextureInfo(textureId, imageWidth, imageHeight));
                         LOAD_ERRORS.remove(key);
                     } catch (Exception e) {
@@ -308,7 +307,7 @@ public final class ChatBackgrounds {
     }
 
     public static void importImage(int panelId) {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         Thread chooser = new Thread(() -> {
             try {
                 FileDialog dialog = new FileDialog((Frame)null, "Выберите фон чата", FileDialog.LOAD);

@@ -1,10 +1,9 @@
 package dev.chatsorter;
 
-import net.minecraft.text.Text;
-
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
+import net.minecraft.network.chat.Component;
 
 /** Immutable source message. Display rows may aggregate several source records as repeats. */
 public record ChatMessageRecord(
@@ -15,7 +14,7 @@ public record ChatMessageRecord(
     String senderId,
     String senderName,
     String rawText,
-    Text message,
+    Component message,
     String componentJson,
     Set<String> categories,
     String conversationId,
@@ -30,7 +29,7 @@ public record ChatMessageRecord(
         senderId = senderId == null ? "" : senderId;
         senderName = senderName == null ? "" : senderName;
         rawText = rawText == null ? "" : rawText;
-        message = message == null ? Text.literal(rawText) : message;
+        message = message == null ? Component.literal(rawText) : message;
         componentJson = componentJson == null ? "" : componentJson;
         categories = categories == null ? Set.of() : Set.copyOf(categories);
         conversationId = conversationId == null ? "" : conversationId;

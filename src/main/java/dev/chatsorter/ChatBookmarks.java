@@ -22,7 +22,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 /** Persistent per-server snapshots of bookmarked source messages. */
 public final class ChatBookmarks {
@@ -42,8 +42,8 @@ public final class ChatBookmarks {
                 if(!element.isJsonObject()) continue;
                 JsonObject o=element.getAsJsonObject();
                 UUID id=uuid(o,"id"); String raw=str(o,"rawText","");
-                String component=str(o,"component",""); Text text=ChatHistoryStorage.deserializeText(component);
-                if(text==null) text=Text.literal(raw);
+                String component=str(o,"component",""); Component text=ChatHistoryStorage.deserializeText(component);
+                if(text==null) text=Component.literal(raw);
                 Set<String> categories=readCategories(o);
                 ChatMessageRecord record=new ChatMessageRecord(id,str(o,"serverId",server),str(o,"sessionId",""),
                     instant(o,"receivedAt"),str(o,"senderId",""),str(o,"senderName",""),raw,text,component,

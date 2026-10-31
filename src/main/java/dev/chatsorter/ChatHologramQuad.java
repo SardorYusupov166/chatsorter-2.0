@@ -1,6 +1,6 @@
 package dev.chatsorter;
 
-import net.minecraft.client.render.VertexConsumer;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import org.joml.Matrix4f;
 
 /** Exact, font-independent rectangles for the world panel's glass and frame. */
@@ -15,9 +15,9 @@ final class ChatHologramQuad {
                 || !Float.isFinite(x) || !Float.isFinite(y) || (color >>> 24) == 0) return;
         float right = x + width, bottom = y + height;
         if (!Float.isFinite(right) || !Float.isFinite(bottom)) return;
-        vertices.vertex(matrix, x, y, 0).color(color).light(FULL_BRIGHT);
-        vertices.vertex(matrix, x, bottom, 0).color(color).light(FULL_BRIGHT);
-        vertices.vertex(matrix, right, bottom, 0).color(color).light(FULL_BRIGHT);
-        vertices.vertex(matrix, right, y, 0).color(color).light(FULL_BRIGHT);
+        vertices.addVertex(matrix, x, y, 0).setColor(color).setLight(FULL_BRIGHT);
+        vertices.addVertex(matrix, x, bottom, 0).setColor(color).setLight(FULL_BRIGHT);
+        vertices.addVertex(matrix, right, bottom, 0).setColor(color).setLight(FULL_BRIGHT);
+        vertices.addVertex(matrix, right, y, 0).setColor(color).setLight(FULL_BRIGHT);
     }
 }

@@ -1,0 +1,62 @@
+name: Minecraft 26.2 client startup smoke test
+on:
+  push:
+    branches: ['port/mc26.2']
+    paths:
+      - '.github/workflows/smoke-client-26.2.yml'
+      - 'src/main/java/dev/chatsorter/mixin/**'
+      - 'src/main/java/dev/chatsorter/ChatWorldRenderer.java'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  launch-client:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.8.1'
+      - name: Install virtual display and software OpenGL
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb mesa-utils libgl1-mesa-dri libglx-mesa0
+      - name: Launch dev client with ChatSorter
+        shell: bash
+        run: |
+          set +e
+          export LIBGL_ALWAYS_SOFTWARE=1
+          timeout --signal=TERM --kill-after=10s 125s xvfb-run -a -s "-screen 0 1280x800x24" gradle runClient --console=plain --no-daemon > client-startup.log 2>&1
+          status=$?
+          echo "runClient exit status: ${status}" | tee -a client-startup.log
+          grep -E 'ChatSorter|Mixin|Minecraft|Exception|ERROR|GLFW|OpenGL|Vulkan' client-startup.log | tail -100 || true
+          if grep -Eiq 'MixinApplyError|Critical injection failure|InjectionError|MixinTransformerError|Crash Report|NoClassDefFoundError|Uncaught exception|Failed to start Minecraft' client-startup.log; then
+            echo "Detected a mod startup failure."
+            exit 1
+          fi
+          if ! grep -Fq 'Registered world render callback:' client-startup.log; then
+            echo "ChatSorter initialization was not observed."
+            exit 1
+          fi
+          if [[ "$status" != "0" && "$status" != "124" ]]; then
+            echo "Client terminated unexpectedly (status=$status)."
+            exit 1
+          fi
+          echo "Client initialization detected, with no known crash signatures."
+      - name: Upload smoke logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatsorter-26.2-client-smoke
+          path: |
+            client-startup.log
+            run/logs/latest.log
+            run/crash-reports/*.txt
+          if-no-files-found: warn

@@ -1,9 +1,9 @@
 package dev.chatsorter;
 
-import net.minecraft.client.MinecraftClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
+import net.minecraft.client.Minecraft;
 
 /** Position is stored in scaled GUI pixels relative to the vanilla bottom-left chat origin. */
 public final class ChatPosition {
@@ -12,7 +12,7 @@ public final class ChatPosition {
     /** Custom dimensions in vanilla chat units; -1 keeps the Minecraft default. */
     public static int width = -1;
     public static int height = -1;
-    private static final Path FILE = MinecraftClient.getInstance().runDirectory.toPath()
+    private static final Path FILE = Minecraft.getInstance().gameDirectory.toPath()
         .resolve("config").resolve("chatsorter-position.properties");
     private ChatPosition() {}
     public static void load() {
