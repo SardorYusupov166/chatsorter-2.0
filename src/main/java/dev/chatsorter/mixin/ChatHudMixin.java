@@ -31,17 +31,21 @@ public abstract class ChatHudMixin {
     @org.spongepowered.asm.mixin.Unique private boolean chatsorter$panelsRendered;
     // Minecraft's vanilla chat keeps only 100 messages and wrapped visual lines.
     // Raise both caps locally so other players do not need an additional mod.
-    @ModifyConstant(method = "addMessageToQueue(Lnet/minecraft/client/multiplayer/chat/GuiMessage;)V", constant = @Constant(intValue = 100))
+    // Optional injection: performance/client mods may rewrite ChatComponent's
+    // limit checks before this mixin runs. Do not crash the whole game when a
+    // specific 100-message constant no longer exists in the transformed method.
+    // ChatSorter's independent message store still captures chat history.
+    @ModifyConstant(method = "addMessageToQueue(Lnet/minecraft/client/multiplayer/chat/GuiMessage;)V", constant = @Constant(intValue = 100), require = 0)
     private int chatsorter$expandMessageHistory(int original) {
         return ChatSorter.maxChatHistory();
     }
 
-    @ModifyConstant(method = "addMessageToDisplayQueue(Lnet/minecraft/client/multiplayer/chat/GuiMessage;)V", constant = @Constant(intValue = 100))
+    @ModifyConstant(method = "addMessageToDisplayQueue(Lnet/minecraft/client/multiplayer/chat/GuiMessage;)V", constant = @Constant(intValue = 100), require = 0)
     private int chatsorter$expandVisibleHistory(int original) {
         return ChatSorter.maxChatHistory();
     }
 
-    @ModifyConstant(method = "addRecentChat(Ljava/lang/String;)V", constant = @Constant(intValue = 100))
+    @ModifyConstant(method = "addRecentChat(Ljava/lang/String;)V", constant = @Constant(intValue = 100), require = 0)
     private int chatsorter$expandInputHistory(int original) {
         return ChatSorter.maxChatHistory();
     }
