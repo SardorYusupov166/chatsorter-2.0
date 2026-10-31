@@ -17,7 +17,7 @@ def split_args(text):
         if quote:
             if escape:
                 escape = False
-            elif char == "\\\\":
+            elif char == "\\":
                 escape = True
             elif char == quote:
                 quote = ""
@@ -35,7 +35,7 @@ def split_args(text):
 
 
 def rewrite_draw_calls(text):
-    pattern = re.compile(r"\\b([A-Za-z_][\\w]*)\\.(drawCenteredString|drawString)\\(")
+    pattern = re.compile(r"\b([A-Za-z_][\w]*)\.(drawCenteredString|drawString)\(")
     result, pos = [], 0
     for match in pattern.finditer(text):
         if match.start() < pos:
@@ -47,7 +47,7 @@ def rewrite_draw_calls(text):
             if quote:
                 if escape:
                     escape = False
-                elif ch == "\\\\":
+                elif ch == "\\":
                     escape = True
                 elif ch == quote:
                     quote = ""
@@ -102,8 +102,8 @@ for path in ROOT.rglob("*.java"):
     source = source.replace(".inGameHud.getChat()", ".gui.hud.getChat()")
     source = source.replace("Minecraft.getInstance().screen", "Minecraft.getInstance().gui.screen()")
     source = source.replace("Minecraft.getInstance().setScreen(", "Minecraft.getInstance().gui.setScreen(")
-    source = re.sub(r"\\b(super)\\.render\\(context,", "super.extractRenderState(context,", source)
-    source = re.sub(r"\\bvoid render\\(GuiGraphicsExtractor", "void extractRenderState(GuiGraphicsExtractor", source)
+    source = re.sub(r"\b(super)\.render\(context,", "super.extractRenderState(context,", source)
+    source = re.sub(r"\bvoid render\(GuiGraphicsExtractor", "void extractRenderState(GuiGraphicsExtractor", source)
     if path.name == "ChatSorter.java":
         source = source.replace(
             "import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;",
