@@ -54,7 +54,7 @@ public abstract class ChatScreenMixin extends Screen {
     protected ChatScreenMixin(Component title) { super(title); }
 
     // Draw flat tabs above the chat instead of adding vanilla ButtonWidgets.
-    @Inject(method = "render", at = @At("TAIL"))
+    @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void chatsorter$render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         chatsorter$pollDrag();
         ChatPanelManager.pollWindowDrag(this.width, this.height);
