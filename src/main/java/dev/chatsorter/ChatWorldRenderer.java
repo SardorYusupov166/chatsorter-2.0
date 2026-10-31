@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Player;
@@ -323,8 +324,9 @@ public final class ChatWorldRenderer {
     private static void submitBackground(SubmitNodeCollector consumers, PoseStack matrices,
                                          float x, float y, int width, int height, int color) {
         if (width <= 0 || height <= 0 || (color >>> 24) == 0) return;
-        consumers.submitTextBackground(matrices, x, y, x + width, y + height,
-            color, renderWithDepth ? Font.DisplayMode.NORMAL : Font.DisplayMode.SEE_THROUGH, FULL_BRIGHT);
+        consumers.submitCustomGeometry(matrices,
+            renderWithDepth ? RenderTypes.textBackground() : RenderTypes.textBackgroundSeeThrough(),
+            (pose, vertices) -> ChatHologramQuad.emit(vertices, pose.pose(), x, y, width, height, color));
     }
 
     private static void drawBorder(SubmitNodeCollector consumers, PoseStack matrices,
