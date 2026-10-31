@@ -328,7 +328,7 @@ public final class ChatPanelManager {
         for (ChatHistoryEntry entry : matches) {
             Component text = entry.displayText();
             ENTRIES.put(text, entry);
-            panel.hud.addMessage(text);
+            panel.hud.addClientSystemMessage(text);
         }
     }
 
@@ -362,7 +362,7 @@ public final class ChatPanelManager {
                 }
                 Component text = entry.displayText();
                 ENTRIES.put(text, entry);
-                panel.hud.addMessage(text);
+                panel.hud.addClientSystemMessage(text);
                 ArrayList<ChatHistoryEntry> next = new ArrayList<>(panel.entries);
                 next.add(entry);
                 panel.entries = List.copyOf(next);

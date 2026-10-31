@@ -157,7 +157,7 @@ public abstract class ChatScreenMixin extends Screen {
     @org.spongepowered.asm.mixin.injection.Redirect(method = "mouseClicked", at = @At(value = "INVOKE",
         target = "Lnet/minecraft/client/gui/Gui;getChat()Lnet/minecraft/client/gui/components/ChatComponent;"), require = 0)
     private ChatComponent chatsorter$usePanelHud(Gui inGameHud) {
-        return chatsorter$activeClickHud == null ? inGameHud.getChat() : chatsorter$activeClickHud;
+        return chatsorter$activeClickHud == null ? inGameHud.hud.getChat() : chatsorter$activeClickHud;
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
@@ -347,12 +347,12 @@ public abstract class ChatScreenMixin extends Screen {
                             Path path = ChatSelection.export(selected, json);
                             Minecraft.getInstance().execute(() -> {
                                 Minecraft mc = Minecraft.getInstance();
-                                if (mc.player != null) mc.player.displayClientMessage(Component.literal("[ChatSorter] Экспорт сохранён: " + path.getFileName()), true);
+                                if (mc.player != null) mc.gui.hud.getChat().addClientSystemMessage(Component.literal("[ChatSorter] Экспорт сохранён: " + path.getFileName()), true);
                             });
                         } catch (Exception exception) {
                             Minecraft.getInstance().execute(() -> {
                                 Minecraft mc = Minecraft.getInstance();
-                                if (mc.player != null) mc.player.displayClientMessage(Component.literal("[ChatSorter] Ошибка экспорта: " + exception.getMessage()), true);
+                                if (mc.player != null) mc.gui.hud.getChat().addClientSystemMessage(Component.literal("[ChatSorter] Ошибка экспорта: " + exception.getMessage()), true);
                             });
                         }
                     });
@@ -564,7 +564,7 @@ public abstract class ChatScreenMixin extends Screen {
         if (option == 6) {
             boolean added=ChatSorter.toggleBookmark(entry);
             Minecraft mc=Minecraft.getInstance();
-            if(mc.player!=null)mc.player.displayClientMessage(Component.literal(added?"[ChatSorter] Добавлено в избранное":"[ChatSorter] Удалено из избранного"),true);
+            if(mc.player!=null)mc.gui.hud.getChat().addClientSystemMessage(Component.literal(added?"[ChatSorter] Добавлено в избранное":"[ChatSorter] Удалено из избранного"),true);
             return;
         }
         if (jump) {
@@ -572,7 +572,7 @@ public abstract class ChatScreenMixin extends Screen {
             ChatSorter.showInConversation(entry);
             chatsorter$scrollToEntry(entry);
             Minecraft mc = Minecraft.getInstance();
-            if (mc.player != null) mc.player.displayClientMessage(Component.literal("[ChatSorter] Открыта переписка вокруг сообщения"), true);
+            if (mc.player != null) mc.gui.hud.getChat().addClientSystemMessage(Component.literal("[ChatSorter] Открыта переписка вокруг сообщения"), true);
             return;
         }
         String content = switch (option) {
@@ -587,7 +587,7 @@ public abstract class ChatScreenMixin extends Screen {
         if (content.isBlank()) return;
         Minecraft mc = Minecraft.getInstance();
         mc.keyboardHandler.setClipboard(content);
-        if (mc.player != null) mc.player.displayClientMessage(Component.literal("[ChatSorter] Скопировано: " + new String[]{"текст", "текст со временем", "форматированный текст", "ник", "ссылка", "технические данные"}[option]), true);
+        if (mc.player != null) mc.gui.hud.getChat().addClientSystemMessage(Component.literal("[ChatSorter] Скопировано: " + new String[]{"текст", "текст со временем", "форматированный текст", "ник", "ссылка", "технические данные"}[option]), true);
     }
     private void chatsorter$scrollToEntry(ChatHistoryEntry target) {
         Minecraft mc = Minecraft.getInstance();

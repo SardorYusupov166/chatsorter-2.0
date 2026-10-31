@@ -101,7 +101,7 @@ public abstract class ChatHudMixin {
         if (!chatsorter$panelsRendered && !chatHidden && ChatPanelManager.enabled()
                 && (ChatComponent)(Object)this == Minecraft.getInstance().gui.hud.getChat()) {
             chatsorter$panelsRendered = true;
-            ChatPanelManager.render(context, textRenderer, currentTick, mouseX, mouseY, focused, false);
+            ChatPanelManager.extractRenderState(context, textRenderer, currentTick, mouseX, mouseY, focused, false);
         }
     }
     @Inject(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/GuiMessageTag;)V", at = @At("HEAD"), cancellable = true)

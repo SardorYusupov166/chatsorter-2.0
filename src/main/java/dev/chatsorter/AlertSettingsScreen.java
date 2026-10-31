@@ -199,7 +199,7 @@ public final class AlertSettingsScreen extends Screen {
         c.disableScissor();
         scrollbar(c,rx+rw-3,settingsTop(),settingsBottom(),settingsContentHeight(),Math.max(1,settingsBottom()-settingsTop()),settingsScroll);
         button(c,"Готово",width-112,height-29,92,21,mx,my);
-        super.render(c,mx,my,delta);
+        super.extractRenderState(c,mx,my,delta);
         if (soundPickerOpen) renderSoundPicker(c,mx,my);
     }
     private static final String[] CATEGORIES = {"Все", "Блоки", "Существа", "Игрок", "Интерфейс", "Окружение", "Музыка", "Предметы", "Прочее"};
@@ -292,7 +292,7 @@ public final class AlertSettingsScreen extends Screen {
         c.disableScissor();
         c.text(font, "Найдено: "+found.size()+"  •  Нажмите для выбора и прослушивания", x+12, y+h-24, 0xFFB8C0C8, true);
         button(c,"Закрыть",x+w-100,y+h-29,88,22,mx,my);
-        soundSearch.render(c,mx,my,0);
+        // EditBox is rendered via Screen child extraction in 26.2.
     }
     @Override public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
         double x=click.x(), y=click.y();

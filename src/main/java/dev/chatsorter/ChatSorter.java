@@ -184,7 +184,7 @@ public class ChatSorter implements ClientModInitializer {
             for (ChatHistoryEntry entry : filteredEntriesForCurrentView()) {
                 Component display = entry.displayText();
                 HUD_ENTRIES.put(display, entry);
-                hud.addMessage(display);
+                hud.addClientSystemMessage(display);
             }
             ChatPanelManager.refresh();
         } finally { replaying = false; }
@@ -225,15 +225,15 @@ public class ChatSorter implements ClientModInitializer {
                 openServerHistory(server);
                 ChatBookmarks.load(activeServerKey);
                 refreshChat();
-                client.gui.hud.getChat().addMessage(Component.literal("[ChatSorter] Мод успешно загружен!").withStyle(style -> style.withColor(0x55FF55)));
-                client.gui.hud.getChat().addMessage(Component.literal("[ChatSorter] Режим RPG: "
+                client.gui.hud.getChat().addClientSystemMessage(Component.literal("[ChatSorter] Мод успешно загружен!").withStyle(style -> style.withColor(0x55FF55)));
+                client.gui.hud.getChat().addClientSystemMessage(Component.literal("[ChatSorter] Режим RPG: "
                     + (ChatExperienceSettings.rpgModeEnabled ? "ВКЛ — мировые голограммы активны" : "ВЫКЛ — включите в настройках уведомлений → настройках чата"))
                     .withStyle(style -> style.withColor(ChatExperienceSettings.rpgModeEnabled ? 0xFF9BE8FF : 0xFFFFC56B)));
-                client.gui.hud.getChat().addMessage(Component.literal("Автор: ").withStyle(style -> style.withColor(0xFFCC55))
+                client.gui.hud.getChat().addClientSystemMessage(Component.literal("Автор: ").withStyle(style -> style.withColor(0xFFCC55))
                     .append(Component.literal("mlpgod").withStyle(style -> style.withColor(0xFFFFFF))));
-                client.gui.hud.getChat().addMessage(Component.literal("Сервер: ").withStyle(style -> style.withColor(0xFFCC55))
+                client.gui.hud.getChat().addClientSystemMessage(Component.literal("Сервер: ").withStyle(style -> style.withColor(0xFFCC55))
                     .append(Component.literal("MigosMC").withStyle(style -> style.withColor(0xFFFFFF))));
-                client.gui.hud.getChat().addMessage(Component.literal("ChatSorter " + VERSION + " | mlpgod - MigosMC").withStyle(style -> style.withColor(0xAAAAAA)));
+                client.gui.hud.getChat().addClientSystemMessage(Component.literal("ChatSorter " + VERSION + " | mlpgod - MigosMC").withStyle(style -> style.withColor(0xAAAAAA)));
             });
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {

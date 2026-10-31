@@ -64,7 +64,7 @@ public final class UserFiltersScreen extends Screen {
         c.disableScissor();
         button(c,"Включить все правила: "+(ChatExperienceSettings.customFiltersEnabled?"Да":"Нет"),12,height-31,230,22,mx,my);
         button(c,"Готово",width-104,height-31,92,22,mx,my);
-        super.render(c,mx,my,delta);
+        super.extractRenderState(c,mx,my,delta);
     }
     @Override public boolean mouseClicked(MouseButtonEvent click,boolean doubled) {
         if(click.button()==0) {
