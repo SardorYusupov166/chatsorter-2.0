@@ -58,7 +58,7 @@ public final class AlertSettingsScreen extends Screen {
     private void button(GuiGraphicsExtractor c, String label, int x, int y, int w, int h, int mx, int my) {
         boolean hover = mx >= x && mx < x+w && my >= y && my < y+h;
         c.fill(x,y,x+w,y+h,hover ? green() : DARK);
-        c.drawCenteredString(font,label,x+w/2,y+(h-8)/2,0xFFFFFFFF);
+        c.text(font, label, (x+w/2) - font.width(label) / 2, y+(h-8)/2, 0xFFFFFFFF, true);
     }
     private void panel(GuiGraphicsExtractor c, int x, int y, int w, int h) {
         c.fill(x,y,x+w,y+h,PANEL);
@@ -98,26 +98,26 @@ public final class AlertSettingsScreen extends Screen {
         int value=(int)Math.round((100+fraction*(5_000-100))/100.0)*100;
         ChatExperienceSettings.chatDisplayLimit=ChatExperienceSettings.clampDisplayLimit(value);
     }
-    @Override public void render(GuiGraphicsExtractor c, int mx, int my, float delta) {
+    @Override public void extractRenderState(GuiGraphicsExtractor c, int mx, int my, float delta) {
         c.fill(0,0,width,height,0xEE14181D);
         c.fill(0,0,width,39,green());
-        c.drawCenteredString(font,"Настройки ChatSorter",width/2,15,0xFFFFFFFF);
+        c.text(font, "Настройки ChatSorter", (width/2) - font.width("Настройки ChatSorter") / 2, 15, 0xFFFFFFFF, true);
         int lx=leftX(), lw=leftW(), rx=rightX(), rw=rightW();
         panel(c,lx,47,lw,40);
         button(c,"+ Добавить",lx+lw-99,59,91,20,mx,my);
         panel(c,lx,92,lw,listBottom()-92);
-        c.drawString(font,"Белый список",lx+8,96,ChatTheme.text());
+        c.text(font, "Белый список", lx+8, 96, ChatTheme.text(), true);
         List<String> words=KeywordAlerts.words();
         wordScroll=Math.min(wordScroll,Math.max(0,words.size()-wordRows()));
         for(int i=0;i<wordRows() && i+wordScroll<words.size();i++) {
             int y=listTop()+i*22;
             c.fill(lx+6,y,lx+lw-7,y+20,0xAA1A2026);
-            c.drawString(font,font.plainSubstrByWidth(words.get(i+wordScroll),Math.max(10,lw-67)),lx+12,y+6,0xFFE2E5E2);
+            c.text(font, font.plainSubstrByWidth(words.get(i+wordScroll),Math.max(10,lw-67)), lx+12, y+6, 0xFFE2E5E2, true);
             button(c,"×",lx+lw-36,y+1,23,18,mx,my);
         }
         scrollbar(c,lx+lw-3,listTop(),listBottom()-5,words.size(),wordRows(),wordScroll);
         panel(c,lx,historyTop(),lw,historyBottom()-historyTop());
-        c.drawString(font,"История уведомлений ("+history.size()+")",lx+8,historyTop()+5,ChatTheme.text());
+        c.text(font, "История уведомлений ("+history.size()+")", lx+8, historyTop()+5, ChatTheme.text(), true);
         int rows=historyRows();
         historyScroll=Math.min(historyScroll,Math.max(0,history.size()-rows));
         for(int i=0;i<rows && i+historyScroll<history.size();i++) {
@@ -125,26 +125,26 @@ public final class AlertSettingsScreen extends Screen {
             int y=historyTop()+19+i*24;
             c.fill(lx+6,y,lx+lw-7,y+22,e==selected ? green() : 0xAA1A2026);
             String shortTime=e.time().length()>10 ? e.time().substring(11,Math.min(19,e.time().length())) : e.time();
-            c.drawString(font,font.plainSubstrByWidth(shortTime+" · "+e.keyword(),lw-20),lx+11,y+2,0xFFFFFFFF);
-            c.drawString(font,font.plainSubstrByWidth(e.message(),lw-20),lx+11,y+12,0xFFB6C2BD);
+            c.text(font, font.plainSubstrByWidth(shortTime+" · "+e.keyword(),lw-20), lx+11, y+2, 0xFFFFFFFF, true);
+            c.text(font, font.plainSubstrByWidth(e.message(),lw-20), lx+11, y+12, 0xFFB6C2BD, true);
         }
         scrollbar(c,lx+lw-3,historyTop()+19,historyBottom()-4,history.size(),rows,historyScroll);
         panel(c,rx,47,rw,40);
-        c.drawCenteredString(font,"Настройки уведомлений",rx+rw/2,63,ChatTheme.text());
+        c.text(font, "Настройки уведомлений", (rx+rw/2) - font.width("Настройки уведомлений") / 2, 63, ChatTheme.text(), true);
         panel(c,rx,92,rw,historyBottom()-92);
         settingsScroll=Math.max(0,Math.min(settingsScroll,maxSettingsScroll()));
         int sx=rx+12, sw=rw-24, oy=settingsTop()-settingsScroll;
         c.enableScissor(rx+2,settingsTop(),rx+rw-2,settingsBottom());
-        c.drawString(font,"Громкость: "+Math.round(KeywordAlerts.volume()*100)+"%",sx,oy,0xFFFFFFFF);
+        c.text(font, "Громкость: "+Math.round(KeywordAlerts.volume()*100)+"%", sx, oy, 0xFFFFFFFF, true);
         c.fill(sx,oy+23,sx+sw,oy+37,0xFF30373B);
         c.fill(sx,oy+23,sx+Math.round(sw*KeywordAlerts.volume()),oy+37,ChatTheme.bright());
-        c.drawString(font,"Звук из Minecraft",sx,oy+62,0xFFFFFFFF);
+        c.text(font, "Звук из Minecraft", sx, oy+62, 0xFFFFFFFF, true);
         button(c,font.plainSubstrByWidth(KeywordAlerts.soundId() + "  ▼",Math.max(30,sw-18)),sx,oy+85,sw,23,mx,my);
         button(c,"▶ Прослушать",sx,oy+123,Math.min(sw,150),23,mx,my);
-        c.drawString(font,"Отдельная громкость, независимо от Minecraft",sx,oy+164,0xFFAAAAAA);
-        c.drawString(font,"Свои сообщения игнорируются",sx,oy+180,0xFFAAAAAA);
+        c.text(font, "Отдельная громкость, независимо от Minecraft", sx, oy+164, 0xFFAAAAAA, true);
+        c.text(font, "Свои сообщения игнорируются", sx, oy+180, 0xFFAAAAAA, true);
         button(c,"Тема: " + ChatTheme.name(),sx,oy+205,Math.min(sw,190),23,mx,my);
-        c.drawString(font,"Цвет подсветки строки уведомления",sx,oy+232,0xFFFFFFFF);
+        c.text(font, "Цвет подсветки строки уведомления", sx, oy+232, 0xFFFFFFFF, true);
         int alertColorSize=18, alertColorGap=5, alertColorStep=alertColorSize+alertColorGap;
         int alertColorCount=KeywordAlerts.highlightColorCount();
         int alertColorColumns=Math.max(1,Math.min(alertColorCount,(sw+alertColorGap)/alertColorStep));
@@ -156,22 +156,22 @@ public final class AlertSettingsScreen extends Screen {
             c.fill(cx,cy,cx+alertColorSize,cy+alertColorSize,
                 0xFF000000 | (KeywordAlerts.highlightColorAt(color)&0x00FFFFFF));
         }
-        c.drawString(font,"Клавиша уведомлений: " + AlertHotkey.keyName(),sx,oy+297,0xFFFFFFFF);
+        c.text(font, "Клавиша уведомлений: " + AlertHotkey.keyName(), sx, oy+297, 0xFFFFFFFF, true);
         button(c,"Сменить клавишу",sx,oy+315,Math.min(sw,160),22,mx,my);
-        c.drawString(font,"Настройки чата",sx,oy+351,ChatTheme.text());
+        c.text(font, "Настройки чата", sx, oy+351, ChatTheme.text(), true);
         button(c,"Объединять повторы: " + (ChatExperienceSettings.mergeRepeats ? "Вкл." : "Выкл."),sx,oy+369,sw,22,mx,my);
         button(c,"Восстанавливать историю: " + (ChatExperienceSettings.restoreHistory ? "Вкл." : "Выкл."),sx,oy+396,sw,22,mx,my);
-        c.drawString(font,"Лимит восстановления: " + ChatExperienceSettings.restoreLimit,sx,oy+423,0xFFFFFFFF);
+        c.text(font, "Лимит восстановления: " + ChatExperienceSettings.restoreLimit, sx, oy+423, 0xFFFFFFFF, true);
         c.fill(sx,oy+442,sx+sw,oy+452,0xFF30373B);
         c.fill(sx,oy+442,sx+(int)Math.round(sw*restoreLimitFraction()),oy+452,ChatTheme.bright());
         int limitKnobX=sx+(int)Math.round(sw*restoreLimitFraction());
         c.fill(limitKnobX-2,oy+438,limitKnobX+3,oy+456,0xFFFFFFFF);
-        c.drawString(font,"Лимит чата при фильтрации: " + ChatExperienceSettings.chatDisplayLimit,sx,oy+462,0xFFFFFFFF);
+        c.text(font, "Лимит чата при фильтрации: " + ChatExperienceSettings.chatDisplayLimit, sx, oy+462, 0xFFFFFFFF, true);
         c.fill(sx,oy+481,sx+sw,oy+491,0xFF30373B);
         c.fill(sx,oy+481,sx+(int)Math.round(sw*chatDisplayLimitFraction()),oy+491,ChatTheme.bright());
         int chatLimitKnobX=sx+(int)Math.round(sw*chatDisplayLimitFraction());
         c.fill(chatLimitKnobX-2,oy+477,chatLimitKnobX+3,oy+495,0xFFFFFFFF);
-        c.drawString(font,"Последние сообщения, выводимые при смене фильтра (100–5000).",sx,oy+498,0xFFAAAAAA);
+        c.text(font, "Последние сообщения, выводимые при смене фильтра (100–5000).", sx, oy+498, 0xFFAAAAAA, true);
         button(c,"Очистить историю этого сервера",sx,oy+516,sw,22,mx,my);
         button(c,"Пользовательские фильтры Regex",sx,oy+543,sw,22,mx,my);
         button(c,"Управление стандартными фильтрами",sx,oy+570,sw,22,mx,my);
@@ -185,15 +185,15 @@ public final class AlertSettingsScreen extends Screen {
         }
         if(selected!=null) {
             int detailOffset = ChatExperienceSettings.rpgModeEnabled ? 162 : 0;
-            c.drawString(font,"Выбранное уведомление",sx,oy+602+detailOffset,ChatTheme.text());
-            c.drawString(font,font.plainSubstrByWidth("Время: "+selected.time(),sw),sx,oy+622+detailOffset,0xFFFFFFFF);
-            c.drawString(font,font.plainSubstrByWidth("Слово: "+selected.keyword(),sw),sx,oy+638+detailOffset,0xFFFFFFFF);
-            c.drawString(font,"Полное сообщение:",sx,oy+658+detailOffset,0xFFFFFFFF);
+            c.text(font, "Выбранное уведомление", sx, oy+602+detailOffset, ChatTheme.text(), true);
+            c.text(font, font.plainSubstrByWidth("Время: "+selected.time(),sw), sx, oy+622+detailOffset, 0xFFFFFFFF, true);
+            c.text(font, font.plainSubstrByWidth("Слово: "+selected.keyword(),sw), sx, oy+638+detailOffset, 0xFFFFFFFF, true);
+            c.text(font, "Полное сообщение:", sx, oy+658+detailOffset, 0xFFFFFFFF, true);
             String msg=selected.message();
             int maxChars=Math.max(8,sw/6);
             for(int i=0;i<Math.min(12,(msg.length()+maxChars-1)/maxChars);i++) {
                 int start=i*maxChars;
-                c.drawString(font,msg.substring(start,Math.min(msg.length(),start+maxChars)),sx,oy+675+detailOffset+i*12,0xFFE2E5E2);
+                c.text(font, msg.substring(start,Math.min(msg.length(),start+maxChars)), sx, oy+675+detailOffset+i*12, 0xFFE2E5E2, true);
             }
         }
         c.disableScissor();
@@ -269,14 +269,14 @@ public final class AlertSettingsScreen extends Screen {
         c.fill(0,0,width,height,0xCC080A0D);
         c.fill(x,y,x+w,y+h,0xFF252A30);
         c.fill(x,y,x+w,y+2,ChatTheme.accent());
-        c.drawCenteredString(font,"Все звуки Minecraft ("+KeywordAlerts.sounds().size()+")",x+w/2,y+11,0xFFFFFFFF);
+        c.text(font, "Все звуки Minecraft ("+KeywordAlerts.sounds().size()+")", (x+w/2) - font.width("Все звуки Minecraft ("+KeywordAlerts.sounds().size()+")") / 2, y+11, 0xFFFFFFFF, true);
         soundSearch.setX(x+12);soundSearch.setY(y+31);soundSearch.setWidth(w-24);
         int cx=x+12;
         for (int i=0;i<CATEGORIES.length;i++) {
             int cw=font.width(CATEGORIES[i])+16;
             if(cx+cw>x+w-12) break;
             c.fill(cx,y+57,cx+cw,y+76,i==soundCategory?ChatTheme.accent():0xFF363D45);
-            c.drawCenteredString(font,CATEGORIES[i],cx+cw/2,y+62,0xFFFFFFFF);
+            c.text(font, CATEGORIES[i], (cx+cw/2) - font.width(CATEGORIES[i]) / 2, y+62, 0xFFFFFFFF, true);
             cx+=cw+4;
         }
         List<String> found=filteredSounds();
@@ -286,11 +286,11 @@ public final class AlertSettingsScreen extends Screen {
             int ry=y+84+i*34;
             String id=found.get(i+soundPickerScroll);
             c.fill(x+12,ry,x+w-12,ry+33,id.equals(KeywordAlerts.soundId())?ChatTheme.accent():((mx>=x+12&&mx<x+w-12&&my>=ry&&my<ry+19)?0xFF404A55:0xFF30363E));
-            c.drawString(font,font.plainSubstrByWidth(soundName(id),w-43),x+19,ry+4,0xFFFFFFFF);
-            c.drawString(font,font.plainSubstrByWidth(id,w-43),x+19,ry+18,0xFFB0BAC4);
+            c.text(font, font.plainSubstrByWidth(soundName(id),w-43), x+19, ry+4, 0xFFFFFFFF, true);
+            c.text(font, font.plainSubstrByWidth(id,w-43), x+19, ry+18, 0xFFB0BAC4, true);
         }
         c.disableScissor();
-        c.drawString(font,"Найдено: "+found.size()+"  •  Нажмите для выбора и прослушивания",x+12,y+h-24,0xFFB8C0C8);
+        c.text(font, "Найдено: "+found.size()+"  •  Нажмите для выбора и прослушивания", x+12, y+h-24, 0xFFB8C0C8, true);
         button(c,"Закрыть",x+w-100,y+h-29,88,22,mx,my);
         soundSearch.render(c,mx,my,0);
     }

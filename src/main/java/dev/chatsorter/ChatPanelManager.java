@@ -421,7 +421,7 @@ public final class ChatPanelManager {
         return (int)Math.round(screenHeight - 40 + panel.y - panel.height * scale - HEADER_HEIGHT - 2);
     }
 
-    public static void render(GuiGraphicsExtractor context, Font renderer, int currentTick, int mouseX, int mouseY,
+    public static void extractRenderState(GuiGraphicsExtractor context, Font renderer, int currentTick, int mouseX, int mouseY,
                               boolean focused, boolean chatHidden) {
         if (!enabled()) return;
         Minecraft mc = Minecraft.getInstance();
@@ -443,19 +443,19 @@ public final class ChatPanelManager {
             String title = "Чат " + (PANELS.indexOf(panel) + 2) + " · " + filterSummary(panel);
             String close = "×";
             context.fill(x + 3, top + 3, x + 24, top + HEADER_HEIGHT - 2, 0x90383E44);
-            context.drawCenteredString(renderer, "▾", x + 13, top + 6, 0xFFE2E5E8);
-            context.drawString(renderer, renderer.plainSubstrByWidth(title, Math.max(10, width - 72)), x + 28, top + 6, 0xFFFFFFFF);
+            context.text(renderer, "▾", (x + 13) - renderer.width("▾") / 2, top + 6, 0xFFE2E5E8, true);
+            context.text(renderer, renderer.plainSubstrByWidth(title, Math.max(10, width - 72)), x + 28, top + 6, 0xFFFFFFFF, true);
             int settingsX = x + width - 39;
             context.fill(settingsX, top + 3, settingsX + 16, top + HEADER_HEIGHT - 2, 0x90383E44);
-            context.drawCenteredString(renderer, "⚙", settingsX + 8, top + 6, ChatTheme.bright(panel.palette));
+            context.text(renderer, "⚙", (settingsX + 8) - renderer.width("⚙") / 2, top + 6, ChatTheme.bright(panel.palette), true);
             int closeX = x + width - 19;
             int closeColor = 0xFFFF8D8D;
             context.fill(closeX, top + 3, x + width - 3, top + HEADER_HEIGHT - 2, 0x90383E44);
-            context.drawCenteredString(renderer, close, closeX + 8, top + 6, closeColor);
+            context.text(renderer, close, (closeX + 8) - renderer.width(close) / 2, top + 6, closeColor, true);
             if (panel.filterPopup) renderFilterPopup(context, renderer, panel, x, top, mc.getWindow().getGuiScaledHeight(), mouseX, mouseY);
             if (panel.unread > 0) {
                 String unread = panel.unread > 999 ? "999+" : Integer.toString(panel.unread);
-                context.drawString(renderer, unread, x + width - 43 - renderer.width(unread), top + 6, 0xFFFF7777);
+                context.text(renderer, unread, x + width - 43 - renderer.width(unread), top + 6, 0xFFFF7777, true);
             }
             panel.unread = 0;
             double bodyTop = baseline - panel.height * scale;
@@ -486,8 +486,8 @@ public final class ChatPanelManager {
             if (mouseX >= px && mouseX < px + pw && mouseY >= ry && mouseY < ry + popupRowHeight())
                 context.fill(px + 1, ry, px + pw - 1, ry + popupRowHeight(), 0x803E4852);
             context.fill(px + 6, ry + 3, px + 15, ry + 12, checked ? ChatTheme.bright(panel.palette) : 0xFF68717A);
-            if (checked) context.drawString(renderer, "✓", px + 7, ry + 2, ChatTheme.text(panel.palette));
-            context.drawString(renderer, renderer.plainSubstrByWidth(option.label(), pw - 30), px + 21, ry + 3, 0xFFE3E7EB);
+            if (checked) context.text(renderer, "✓", px + 7, ry + 2, ChatTheme.text(panel.palette), true);
+            context.text(renderer, renderer.plainSubstrByWidth(option.label(), pw - 30), px + 21, ry + 3, 0xFFE3E7EB, true);
         }
         context.disableScissor();
     }
@@ -531,8 +531,8 @@ public final class ChatPanelManager {
                     return true;
                 }
                 if (mouseX >= x + width - 39 && mouseX < x + width - 22 && inHeader) {
-                    Minecraft.getInstance().setScreen(new ChatBackgroundSettingsScreen(
-                        Minecraft.getInstance().screen, panel.id));
+                    Minecraft.getInstance().gui.setScreen(new ChatBackgroundSettingsScreen(
+                        Minecraft.getInstance().gui.screen(), panel.id));
                     return true;
                 }
                 if (mouseX >= x + 2 && mouseX < x + 26 && inHeader) {

@@ -18,11 +18,11 @@ public final class HotkeySetupScreen extends Screen {
         }
         if(wait>0)wait--;
     }
-    @Override public void render(GuiGraphicsExtractor c,int mx,int my,float delta){
+    @Override public void extractRenderState(GuiGraphicsExtractor c,int mx,int my,float delta){
         c.fill(0,0,width,height,0xEE14181D);
-        c.drawCenteredString(font,"ChatSorter — назначение горячей клавиши",width/2,height/2-36,ChatTheme.bright());
-        c.drawCenteredString(font,"Нажмите любую клавишу для открытия настроек уведомлений",width/2,height/2-10,0xFFFFFFFF);
-        c.drawCenteredString(font,"ESC — позже (при следующем входе предложим снова)",width/2,height/2+16,0xFFAAAAAA);
+        c.text(font, "ChatSorter — назначение горячей клавиши", (width/2) - font.width("ChatSorter — назначение горячей клавиши") / 2, height/2-36, ChatTheme.bright(), true);
+        c.text(font, "Нажмите любую клавишу для открытия настроек уведомлений", (width/2) - font.width("Нажмите любую клавишу для открытия настроек уведомлений") / 2, height/2-10, 0xFFFFFFFF, true);
+        c.text(font, "ESC — позже (при следующем входе предложим снова)", (width/2) - font.width("ESC — позже (при следующем входе предложим снова)") / 2, height/2+16, 0xFFAAAAAA, true);
         super.render(c,mx,my,delta);
     }
     @Override public void onClose(){minecraft.gui.setScreen(parent);}

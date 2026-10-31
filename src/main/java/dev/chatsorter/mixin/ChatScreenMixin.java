@@ -69,9 +69,7 @@ public abstract class ChatScreenMixin extends Screen {
         boolean canAddPanel = ChatPanelManager.canAdd();
         boolean panelsHovered = mouseX >= 5 && mouseX < 132 && mouseY >= 47 && mouseY < 68;
         context.fill(5, 47, 132, 68, panelsHovered && canAddPanel ? ChatTheme.accent() : 0xCB25282D);
-        context.drawCenteredString(this.font,
-            canAddPanel ? "+ Добавить (" + ChatPanelManager.count() + "/5)" : "Чатов: 5/5",
-            68, 53, canAddPanel ? 0xFFE2E5E8 : 0xFF8B9095);
+        context.text(this.font, canAddPanel ? "+ Добавить (" + ChatPanelManager.count() + "/5)" : "Чатов: 5/5", (68) - this.font.width(canAddPanel ? "+ Добавить (" + ChatPanelManager.count() + "/5)" : "Чатов: 5/5") / 2, 53, canAddPanel ? 0xFFE2E5E8 : 0xFF8B9095, true);
         if (!ChatPanelManager.enabled()) {
         int x = chatsorter$tabX(builtinCount);
         int y = 7;
@@ -87,14 +85,14 @@ public abstract class ChatScreenMixin extends Screen {
             if (active) context.fill(left, y + h - 2, left + width - 2, y + h, dev.chatsorter.ChatTheme.bright());
             String label = this.font.plainSubstrByWidth(toggle.label(), Math.max(20, width - 8));
             int textX = left + (width - 2 - this.font.width(label)) / 2;
-            context.drawString(this.font, label, textX, y + 4, active ? dev.chatsorter.ChatTheme.text() : 0xFFD3D5D6);
+            context.text(this.font, label, textX, y + 4, active ? dev.chatsorter.ChatTheme.text() : 0xFFD3D5D6, true);
             int count = 0;
             try { count = ChatSorter.unread[ChatSorter.Tab.valueOf(toggle.key()).ordinal()]; } catch (IllegalArgumentException ignored) { }
             if (count > 0) {
                 String number = count > 999 ? "999+" : Integer.toString(count);
                 int bx = left + width - 4 - this.font.width(number);
                 context.fill(bx - 3, y - 7, left + width - 1, y + 3, 0xE0A53737);
-                context.drawString(this.font, number, bx, y - 6, 0xFFFFFFFF);
+                context.text(this.font, number, bx, y - 6, 0xFFFFFFFF, true);
             }
         }
         int customCount = custom.size();
@@ -102,7 +100,7 @@ public abstract class ChatScreenMixin extends Screen {
             boolean favHover=mouseX>=5&&mouseX<85&&mouseY>=27&&mouseY<44;
             context.fill(5,27,85,44,favorite.enabled()?ChatTheme.accent():favHover?0xDB393E42:0xCB25282D);
             if(favorite.enabled())context.fill(5,42,85,44,ChatTheme.bright());
-            context.drawCenteredString(this.font,"Избранное",45,31,favorite.enabled()?ChatTheme.text():0xFFD3D5D6);
+            context.text(this.font, "Избранное", (45) - this.font.width("Избранное") / 2, 31, favorite.enabled()?ChatTheme.text():0xFFD3D5D6, true);
         }
         if (customCount > 0) {
             int cy=27, cw=Math.max(42,Math.min(100,(this.width-160)/customCount));
@@ -113,15 +111,15 @@ public abstract class ChatScreenMixin extends Screen {
                 context.fill(left,cy,left+cw-2,cy+h,active?ChatTheme.accent():hovered?0xDB393E42:0xCB25282D);
                 if(active) context.fill(left,cy+h-2,left+cw-2,cy+h,ChatTheme.bright());
                 String label=this.font.plainSubstrByWidth(toggle.label(),Math.max(18,cw-8));
-                context.drawCenteredString(this.font,label,left+(cw-2)/2,cy+4,active?ChatTheme.text():0xFFD3D5D6);
+                context.text(this.font, label, (left+(cw-2)/2) - this.font.width(label) / 2, cy+4, active?ChatTheme.text():0xFFD3D5D6, true);
             }
             String page=ChatSorter.customFilterPageLabel(this.width);
             if(!page.isEmpty()) {
                 context.fill(90,27,107,44,mouseX>=90&&mouseX<107&&mouseY>=27&&mouseY<44?ChatTheme.accent():0xCB25282D);
-                context.drawCenteredString(this.font,"‹",98,31,0xFFFFFFFF);
+                context.text(this.font, "‹", (98) - this.font.width("‹") / 2, 31, 0xFFFFFFFF, true);
                 context.fill(110,27,127,44,mouseX>=110&&mouseX<127&&mouseY>=27&&mouseY<44?ChatTheme.accent():0xCB25282D);
-                context.drawCenteredString(this.font,"›",118,31,0xFFFFFFFF);
-                context.drawString(this.font,page,132,31,0xFFD3D5D6);
+                context.text(this.font, "›", (118) - this.font.width("›") / 2, 31, 0xFFFFFFFF, true);
+                context.text(this.font, page, 132, 31, 0xFFD3D5D6, true);
             }
         }
         }
@@ -131,15 +129,13 @@ public abstract class ChatScreenMixin extends Screen {
         context.fill(backgroundButtonX, 7, backgroundButtonX + 82, 24,
             backgroundHovered ? ChatTheme.accent() : 0xCB25282D);
         context.fill(backgroundButtonX, 22, backgroundButtonX + 82, 24, ChatTheme.bright());
-        context.drawCenteredString(this.font, "Фон чата", backgroundButtonX + 41, 11,
-            backgroundHovered ? ChatTheme.text() : 0xFFD3D5D6);
+        context.text(this.font, "Фон чата", (backgroundButtonX + 41) - this.font.width("Фон чата") / 2, 11, backgroundHovered ? ChatTheme.text() : 0xFFD3D5D6, true);
         if (RulesIntegration.available()) {
             int left = 5, top = 7, buttonWidth = 82, buttonHeight = 17;
             boolean hovered = mouseX >= left && mouseX < left + buttonWidth && mouseY >= top && mouseY < top + buttonHeight;
             context.fill(left, top, left + buttonWidth, top + buttonHeight, hovered ? ChatTheme.accent() : 0xCB25282D);
             context.fill(left, top + buttonHeight - 2, left + buttonWidth, top + buttonHeight, ChatTheme.bright());
-            context.drawCenteredString(this.font, "Правила", left + buttonWidth / 2, top + 4,
-                hovered ? ChatTheme.text() : 0xFFD3D5D6);
+            context.text(this.font, "Правила", (left + buttonWidth / 2) - this.font.width("Правила") / 2, top + 4, hovered ? ChatTheme.text() : 0xFFD3D5D6, true);
         }
         chatsorter$renderSelection(context, mouseX, mouseY);
         chatsorter$renderHoveredRow(context, mouseX, mouseY);
@@ -313,15 +309,15 @@ public abstract class ChatScreenMixin extends Screen {
         for (int i = 0; i < labels.length; i++) {
             boolean hovered = mouseX >= left && mouseX < left + widths[i] && mouseY >= y && mouseY < y + 17;
             context.fill(left, y, left + widths[i], y + 17, hovered ? ChatTheme.accent() : 0xCB25282D);
-            context.drawCenteredString(this.font, labels[i], left + widths[i] / 2, y + 4, 0xFFE2E5E8);
+            context.text(this.font, labels[i], (left + widths[i] / 2) - this.font.width(labels[i]) / 2, y + 4, 0xFFE2E5E8, true);
             left += widths[i] + gap;
         }
         int repeatY = y + 20;
         String repeatLabel = "Повторы: " + (ChatSelection.expandsRepeats() ? "каждое сообщение" : "одна строка");
         boolean repeatHover = mouseX >= x && mouseX < x + 164 && mouseY >= repeatY && mouseY < repeatY + 17;
         context.fill(x, repeatY, x + 164, repeatY + 17, repeatHover ? ChatTheme.accent() : 0xCB25282D);
-        context.drawCenteredString(this.font, repeatLabel, x + 82, repeatY + 4, 0xFFE2E5E8);
-        context.drawString(this.font, "Выделено: " + ChatSelection.size(), x + 171, repeatY + 4, 0xFFFFFFFF);
+        context.text(this.font, repeatLabel, (x + 82) - this.font.width(repeatLabel) / 2, repeatY + 4, 0xFFE2E5E8, true);
+        context.text(this.font, "Выделено: " + ChatSelection.size(), x + 171, repeatY + 4, 0xFFFFFFFF, true);
     }
 
     private boolean chatsorter$selectionToolbarClick(double mouseX, double mouseY) {
@@ -556,8 +552,7 @@ public abstract class ChatScreenMixin extends Screen {
             boolean disabled = (i == 3 && entry.sender.isBlank()) || (i == 4 && ChatSorter.copyLink(entry).isBlank());
             boolean hovered = !disabled && mouseX >= x && mouseX < x + COPY_MENU_WIDTH && mouseY >= rowY && mouseY < rowY + COPY_MENU_ROW;
             if (hovered) context.fill(x, rowY, x + COPY_MENU_WIDTH, rowY + COPY_MENU_ROW, ChatTheme.accent());
-            context.drawString(this.font, labels[i], x + 7, rowY + 5,
-                disabled ? 0xFF747B82 : hovered ? ChatTheme.text() : 0xFFE2E5E8);
+            context.text(this.font, labels[i], x + 7, rowY + 5, disabled ? 0xFF747B82 : hovered ? ChatTheme.text() : 0xFFE2E5E8, true);
         }
     }
     private void chatsorter$copyOption(int option) {

@@ -19,15 +19,14 @@ public final class StandardFiltersScreen extends Screen {
     private void button(GuiGraphicsExtractor context, String label, int x, int y, int w, int h, int mouseX, int mouseY, int color) {
         boolean hovered = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
         context.fill(x, y, x + w, y + h, hovered ? ChatTheme.accent() : color);
-        context.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2, 0xFFFFFFFF);
+        context.text(font, label, (x + w / 2) - font.width(label) / 2, y + (h - 8) / 2, 0xFFFFFFFF, true);
     }
 
-    @Override public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+    @Override public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         context.fill(0, 0, width, height, 0xEE14181D);
         context.fill(0, 0, width, 38, ChatTheme.accent());
-        context.drawCenteredString(font, "Стандартные фильтры чата", width / 2, 14, 0xFFFFFFFF);
-        context.drawCenteredString(font,
-            "Скрытие убирает кнопку с панели, но не удаляет сообщения или историю.", width / 2, 52, 0xFFCCD2D8);
+        context.text(font, "Стандартные фильтры чата", (width / 2) - font.width("Стандартные фильтры чата") / 2, 14, 0xFFFFFFFF, true);
+        context.text(font, "Скрытие убирает кнопку с панели, но не удаляет сообщения или историю.", (width / 2) - font.width("Скрытие убирает кнопку с панели, но не удаляет сообщения или историю.") / 2, 52, 0xFFCCD2D8, true);
 
         int cellW = Math.min(340, Math.max(220, (width - 48) / 2));
         int gap = 12;
@@ -38,7 +37,7 @@ public final class StandardFiltersScreen extends Screen {
             int x = left + col * (cellW + gap), y = top + row * 46;
             boolean visible = ChatExperienceSettings.standardFilterVisible(KEYS[i]);
             context.fill(x, y, x + cellW, y + 38, 0xB52A2E33);
-            context.drawString(font, LABELS[i], x + 10, y + 7, 0xFFFFFFFF);
+            context.text(font, LABELS[i], x + 10, y + 7, 0xFFFFFFFF, true);
             String action = visible ? "Убрать" : "Вернуть";
             button(context, action, x + cellW - 96, y + 5, 86, 27, mouseX, mouseY,
                 visible ? 0xFF733D3D : 0xFF315D46);
@@ -47,7 +46,7 @@ public final class StandardFiltersScreen extends Screen {
         button(context, "Восстановить все стандартные фильтры", width / 2 - 160, height - 62,
             320, 24, mouseX, mouseY, 0xFF315D46);
         button(context, "Готово", width / 2 - 55, height - 31, 110, 22, mouseX, mouseY, 0xFF30363E);
-        super.render(context, mouseX, mouseY, delta);
+        super.extractRenderState(context, mouseX, mouseY, delta);
     }
 
     @Override public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {

@@ -214,7 +214,7 @@ public class ChatSorter implements ClientModInitializer {
             int top = mc.gui.screen() instanceof net.minecraft.client.gui.screens.ChatScreen ? 29 : 7;
             context.fill(right - textWidth - 14, top, right, top + 18, 0xDD292D32);
             context.fill(right - textWidth - 14, top, right - textWidth - 11, top + 18, ChatTheme.bright());
-            context.drawString(mc.font, label, right - textWidth - 7, top + 5, 0xFFFFFFFF);
+            context.text(mc.font, label, right - textWidth - 7, top + 5, 0xFFFFFFFF, true);
         });
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             String server = client.getCurrentServer() == null ? "singleplayer_or_unknown" : client.getCurrentServer().ip;
