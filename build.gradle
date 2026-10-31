@@ -1,20 +1,19 @@
-plugins { id 'net.fabricmc.fabric-loom-remap' version '1.14.10' }
+plugins { id 'net.fabricmc.fabric-loom' version '1.18.2' }
 version = project.mod_version
 group = 'dev.chatsorter'
 base { archivesName = 'chatsorter' }
 repositories { mavenCentral() }
 dependencies {
  minecraft "com.mojang:minecraft:${project.minecraft_version}"
- mappings loom.officialMojangMappings()
- modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
- modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+ implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+ implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
     // RE2/J provides linear-time matching; user supplied filters are never run
     // through Java's backtracking regex engine on the client thread.
     include implementation('com.google.re2j:re2j:1.8')
 }
 processResources { inputs.property 'version', project.version; filesMatching('fabric.mod.json') { expand version: project.version } }
-tasks.withType(JavaCompile).configureEach { options.release = 21; options.encoding = 'UTF-8' }
-java { toolchain.languageVersion = JavaLanguageVersion.of(21) }
+tasks.withType(JavaCompile).configureEach { options.release = 25; options.encoding = 'UTF-8'; options.compilerArgs.addAll(['-Xmaxerrs','1000']) }
+java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
 
 // Geometry checks run without a game window and without an extra test framework.
 sourceSets {
